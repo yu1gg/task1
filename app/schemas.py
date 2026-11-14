@@ -9,11 +9,16 @@ IMPORTANCE_MAP = {
     "必须": "must",
     "必需": "must",
     "硬性": "must",
+    "硬性要求": "must",
+    "必备": "must",
+    "必要条件": "must",
     "nice": "nice",
     "optional": "nice",
     "加分": "nice",
     "优先": "nice",
     "可选": "nice",
+    "优先考虑": "nice",
+    "加分项": "nice",
 }
 
 LEVEL_MAP = {
@@ -34,6 +39,17 @@ class JobSkillItem(BaseModel):
     category: str = Field(default="通用", max_length=40)
     importance: str = "nice"
     required_level: int = 3
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def normalize_name(cls, value: Any) -> str:
+        return " ".join(str(value).strip().split())
+
+    @field_validator("category", mode="before")
+    @classmethod
+    def normalize_category(cls, value: Any) -> str:
+        text = " ".join(str(value).strip().split())
+        return text or "通用"
 
     @field_validator("importance", mode="before")
     @classmethod

@@ -59,3 +59,19 @@ def test_format_skills_null_level_defaults_to_three():
         format_skills([{"name": "Python", "level": None, "evidence": ""}])
         == "Python | 3 | "
     )
+
+
+def test_short_header_is_padded_not_dropped():
+    items = parse_blocks("课程项目 | 成员", ["name", "role", "period"])
+    assert len(items) == 1
+    assert items[0]["name"] == "课程项目"
+    assert items[0]["role"] == "成员"
+    assert items[0]["period"] == ""
+
+
+def test_pipe_heavy_description_without_blank_line_stays_in_description():
+    text = "P | R | T\n技术栈 | FastAPI | Vue\n\nQ | R | T"
+    items = parse_blocks(text, ["name", "role", "period"])
+    assert len(items) == 2
+    assert items[0]["description"] == "技术栈 | FastAPI | Vue"
+    assert items[1]["name"] == "Q"

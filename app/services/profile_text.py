@@ -33,24 +33,39 @@ def format_education(items: list[dict]) -> str:
 
 
 def parse_blocks(text: str, fields: list[str]) -> list[dict]:
-    def is_header(line: str) -> bool:
-        if not line.strip():
-            return False
-        parts = [part.strip() for part in line.split("|")]
-        return len(parts) >= len(fields) and bool(parts[0])
-
+    lines = (text or "").splitlines()
     blocks: list[tuple[str, list[str]]] = []
     current_header: str | None = None
     current_description: list[str] = []
+    index = 0
 
-    for line in (text or "").splitlines():
-        if is_header(line):
-            if current_header is not None:
+    while index < len(lines):
+        line = lines[index]
+
+        if not line.strip():
+            blank_start = index
+            while index < len(lines) and not lines[index].strip():
+                index += 1
+            next_line = lines[index] if index < len(lines) else None
+
+            if (
+                current_header is not None
+                and next_line is not None
+                and "|" in next_line
+            ):
                 blocks.append((current_header, current_description))
+                current_header = None
+                current_description = []
+            elif current_header is not None:
+                current_description.extend([""] * (index - blank_start))
+            continue
+
+        if current_header is None:
             current_header = line.strip()
             current_description = []
-        elif current_header is not None:
+        else:
             current_description.append(line.rstrip())
+        index += 1
 
     if current_header is not None:
         blocks.append((current_header, current_description))
@@ -59,7 +74,7 @@ def parse_blocks(text: str, fields: list[str]) -> list[dict]:
     for header_line, description_lines in blocks:
         header = [part.strip() for part in header_line.split("|")]
         header += [""] * (len(fields) - len(header))
-        item = {field: header[index] for index, field in enumerate(fields)}
+        item = {field: header[position] for position, field in enumerate(fields)}
         item["description"] = "\n".join(description_lines).strip()
         items.append(item)
     return items

@@ -92,7 +92,7 @@ def save_profile(
     )
     profile.awards_json = parse_awards(awards_text[:4000])
     profile.skills_json = parse_skills(skills_text[:4000])
-    profile.availability_from = availability_from.strip() or None
+    profile.availability_from = availability_from.strip()[:20] or None
     profile.availability_note = availability_note.strip()[:200] or None
 
     target_job_id = target_job_id.strip()

@@ -675,6 +675,7 @@ os.environ["DEEPSEEK_API_KEY"] = "test-key"
 import pytest
 from fastapi.testclient import TestClient
 
+from app import models  # noqa: F401
 from app.db import Base, engine
 from app.main import app
 
@@ -747,6 +748,8 @@ class Base(DeclarativeBase):
 
 
 def init_db() -> None:
+    from app import models  # noqa: F401
+
     Base.metadata.create_all(bind=engine)
 
 

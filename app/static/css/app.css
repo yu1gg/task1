@@ -1,0 +1,58 @@
+:root {
+  --brand: #1f4e79;
+  --page-bg: #f6f8fb;
+}
+
+body {
+  background: var(--page-bg);
+  color: #1f2933;
+}
+
+.navbar.bg-primary {
+  background-color: var(--brand) !important;
+}
+
+.card {
+  border: 0;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.08);
+}
+
+.card-header {
+  background: #fff;
+  border-bottom: 1px solid #eef2f7;
+  font-weight: 600;
+}
+
+.btn-primary {
+  background-color: var(--brand);
+  border-color: var(--brand);
+}
+
+.btn-primary:hover {
+  background-color: #163a5a;
+  border-color: #163a5a;
+}
+
+.page-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.text-muted {
+  color: #667085 !important;
+}
+
+.table > :not(caption) > * > * {
+  padding: 0.65rem 0.75rem;
+}
+
+.form-label {
+  font-weight: 500;
+}
+
+.form-hint {
+  font-size: 0.8rem;
+  color: #667085;
+}

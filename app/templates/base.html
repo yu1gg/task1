@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}AI 职业发展平台{% endblock %}</title>
+  <link rel="stylesheet" href="/static/vendor/bootstrap.min.css">
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+  <div class="container">
+    <a class="navbar-brand" href="/">AI 职业发展平台</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav"
+            aria-controls="mainNav" aria-expanded="false" aria-label="切换导航">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="mainNav">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item"><a class="nav-link" href="/jobs">岗位</a></li>
+        {% if user and user.role == 'student' %}
+        <li class="nav-item"><a class="nav-link" href="/profile">我的资料</a></li>
+        {% endif %}
+      </ul>
+      <ul class="navbar-nav">
+        {% if user %}
+        <li class="nav-item">
+          <span class="navbar-text me-3">{{ user.real_name }}{% if role_label %}（{{ role_label }}）{% endif %}</span>
+        </li>
+        <li class="nav-item">
+          <form method="post" action="/logout" class="d-inline">
+            <button class="btn btn-outline-light btn-sm" type="submit">退出</button>
+          </form>
+        </li>
+        {% else %}
+        <li class="nav-item"><a class="nav-link" href="/login">登录</a></li>
+        <li class="nav-item"><a class="nav-link" href="/register">注册</a></li>
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<main class="container py-4">
+  {% for f in flashes %}
+  <div class="alert alert-{{ f.category }} alert-dismissible fade show" role="alert">
+    {{ f.message }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="关闭"></button>
+  </div>
+  {% endfor %}
+  {% block content %}{% endblock %}
+</main>
+
+<script src="/static/vendor/bootstrap.bundle.min.js"></script>
+<script src="/static/js/app.js"></script>
+</body>
+</html>

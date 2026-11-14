@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}AI 职业发展平台{% endblock %}
+{% block content %}
+<div class="p-5 mb-4 bg-white rounded-3 shadow-sm">
+  <h1 class="display-6 fw-bold">AI 职业发展平台</h1>
+  <p class="lead text-muted">从岗位技能拆解，到 AI 简历与视频面试，帮你把能力差距变成成长路径。</p>
+  <a class="btn btn-primary btn-lg" href="/register">开始使用</a>
+  {% if not user %}
+  <a class="btn btn-outline-secondary btn-lg ms-2" href="/login">已有账号，登录</a>
+  {% endif %}
+</div>
+<div class="row g-3">
+  <div class="col-md-4">
+    <div class="card h-100"><div class="card-body">
+      <h5 class="card-title">岗位技能拆解</h5>
+      <p class="card-text text-muted">录入企业岗位，AI 自动提取必须技能与要求等级。</p>
+    </div></div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100"><div class="card-body">
+      <h5 class="card-title">能力差距清晰</h5>
+      <p class="card-text text-muted">按岗位查看自己的技能差距，知道下一步学什么。</p>
+    </div></div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100"><div class="card-body">
+      <h5 class="card-title">AI 简历与面试</h5>
+      <p class="card-text text-muted">生成针对性简历，并通过 AI 视频面试发现短板。</p>
+    </div></div>
+  </div>
+</div>
+{% endblock %}

@@ -4311,6 +4311,21 @@ def test_skills_parse_clamps_and_formats():
     assert items[1]["level"] == 3
     assert items[0]["evidence"] == "课程项目"
     assert "Python | 5 | 课程项目" in format_skills(items)
+
+
+def test_projects_preserve_blank_lines_in_description():
+    text = "P | R | T\nline1\n\nline2\n\nQ | R | T"
+    items = parse_blocks(text, ["name", "role", "period"])
+    assert len(items) == 2
+    assert items[0]["description"] == "line1\n\nline2"
+    assert items[1]["name"] == "Q"
+
+
+def test_format_skills_null_level_defaults_to_three():
+    assert (
+        format_skills([{"name": "Python", "level": None, "evidence": ""}])
+        == "Python | 3 | "
+    )
 ```
 
 Create `tests/test_profile_routes.py`:
@@ -4364,6 +4379,77 @@ def test_teacher_cannot_access_student_profile(client):
     make_teacher(client)
     response = client.get("/profile")
     assert response.status_code == 403
+
+
+def test_invalid_target_job_values_are_cleared(client):
+    make_student(client)
+
+    response = client.post(
+        "/profile",
+        data={**PROFILE_DATA, "target_job_id": "abc"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+
+    with SessionLocal() as db:
+        student = db.scalar(select(User).where(User.username == "stu1"))
+        assert db.get(StudentProfile, student.id).target_job_id is None
+
+    response = client.post(
+        "/profile",
+        data={**PROFILE_DATA, "target_job_id": "9" * 20},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+
+    with SessionLocal() as db:
+        student = db.scalar(select(User).where(User.username == "stu1"))
+        assert db.get(StudentProfile, student.id).target_job_id is None
+
+
+def test_closed_target_job_is_not_saved(client):
+    make_student(client)
+
+    with SessionLocal() as db:
+        student = db.scalar(select(User).where(User.username == "stu1"))
+        company = Company(name="关闭公司", created_by=student.id)
+        db.add(company)
+        db.flush()
+        job = Job(
+            company_id=company.id,
+            title="关闭岗位",
+            created_by=student.id,
+            status="closed",
+        )
+        db.add(job)
+        db.commit()
+        job_id = job.id
+
+    response = client.post(
+        "/profile",
+        data={**PROFILE_DATA, "target_job_id": str(job_id)},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+
+    with SessionLocal() as db:
+        student = db.scalar(select(User).where(User.username == "stu1"))
+        assert db.get(StudentProfile, student.id).target_job_id is None
+
+
+def test_empty_profile_save_and_availability_clear(client):
+    make_student(client)
+    client.post("/profile", data=PROFILE_DATA, follow_redirects=False)
+
+    response = client.post("/profile", data={}, follow_redirects=False)
+    assert response.status_code == 303
+
+    with SessionLocal() as db:
+        student = db.scalar(select(User).where(User.username == "stu1"))
+        profile = db.get(StudentProfile, student.id)
+        assert profile.summary == ""
+        assert profile.skills_json == []
+        assert profile.availability_from is None
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -4416,26 +4502,34 @@ def format_education(items: list[dict]) -> str:
 
 
 def parse_blocks(text: str, fields: list[str]) -> list[dict]:
-    blocks: list[list[str]] = []
-    current: list[str] = []
+    def is_header(line: str) -> bool:
+        if not line.strip():
+            return False
+        parts = [part.strip() for part in line.split("|")]
+        return len(parts) >= len(fields) and bool(parts[0])
+
+    blocks: list[tuple[str, list[str]]] = []
+    current_header: str | None = None
+    current_description: list[str] = []
 
     for line in (text or "").splitlines():
-        if line.strip() == "":
-            if current:
-                blocks.append(current)
-                current = []
-        else:
-            current.append(line.strip())
+        if is_header(line):
+            if current_header is not None:
+                blocks.append((current_header, current_description))
+            current_header = line.strip()
+            current_description = []
+        elif current_header is not None:
+            current_description.append(line.rstrip())
 
-    if current:
-        blocks.append(current)
+    if current_header is not None:
+        blocks.append((current_header, current_description))
 
     items = []
-    for block in blocks:
-        header = [part.strip() for part in block[0].split("|")]
+    for header_line, description_lines in blocks:
+        header = [part.strip() for part in header_line.split("|")]
         header += [""] * (len(fields) - len(header))
         item = {field: header[index] for index, field in enumerate(fields)}
-        item["description"] = "\n".join(block[1:]).strip()
+        item["description"] = "\n".join(description_lines).strip()
         items.append(item)
     return items
 
@@ -4479,10 +4573,13 @@ def parse_skills(text: str) -> list[dict]:
 
 
 def format_skills(items: list[dict]) -> str:
-    return "\n".join(
-        f"{item.get('name', '')} | {item.get('level', 3)} | {item.get('evidence', '')}"
-        for item in items or []
-    )
+    lines = []
+    for item in items or []:
+        level = item.get("level") or 3
+        lines.append(
+            f"{item.get('name', '')} | {level} | {item.get('evidence', '')}"
+        )
+    return "\n".join(lines)
 ```
 
 - [ ] **Step 4: Create the profile router**
@@ -4571,21 +4668,25 @@ def save_profile(
         db.add(profile)
         db.flush()
 
-    profile.summary = summary.strip()
-    profile.education_json = parse_education(education_text)
-    profile.projects_json = parse_blocks(projects_text, ["name", "role", "period"])
-    profile.internships_json = parse_blocks(
-        internships_text, ["company", "role", "period"]
+    profile.summary = summary.strip()[:500]
+    profile.education_json = parse_education(education_text[:4000])
+    profile.projects_json = parse_blocks(
+        projects_text[:8000], ["name", "role", "period"]
     )
-    profile.awards_json = parse_awards(awards_text)
-    profile.skills_json = parse_skills(skills_text)
+    profile.internships_json = parse_blocks(
+        internships_text[:8000], ["company", "role", "period"]
+    )
+    profile.awards_json = parse_awards(awards_text[:4000])
+    profile.skills_json = parse_skills(skills_text[:4000])
     profile.availability_from = availability_from.strip() or None
-    profile.availability_note = availability_note.strip() or None
+    profile.availability_note = availability_note.strip()[:200] or None
 
     target_job_id = target_job_id.strip()
-    if target_job_id.isdigit():
+    if target_job_id.isdigit() and len(target_job_id) <= 9:
         job = db.get(Job, int(target_job_id))
-        profile.target_job_id = job.id if job is not None else None
+        profile.target_job_id = (
+            job.id if job is not None and job.status == "open" else None
+        )
     else:
         profile.target_job_id = None
 
@@ -4707,6 +4808,11 @@ tests/test_profile_text.py::test_skills_parse_clamps_and_formats PASSED
 tests/test_profile_routes.py::test_student_can_save_profile PASSED
 tests/test_profile_routes.py::test_profile_is_persisted PASSED
 tests/test_profile_routes.py::test_teacher_cannot_access_student_profile PASSED
+tests/test_profile_routes.py::test_invalid_target_job_values_are_cleared PASSED
+tests/test_profile_routes.py::test_closed_target_job_is_not_saved PASSED
+tests/test_profile_routes.py::test_empty_profile_save_and_availability_clear PASSED
+tests/test_profile_text.py::test_projects_preserve_blank_lines_in_description PASSED
+tests/test_profile_text.py::test_format_skills_null_level_defaults_to_three PASSED
 ```
 
 - [ ] **Step 8: Commit**

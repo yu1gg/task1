@@ -25,19 +25,21 @@
       <div class="card-header">技能要求</div>
       <div class="card-body p-0">
         {% if job.skills %}
-        <table class="table mb-0">
-          <thead><tr><th>技能</th><th>类别</th><th>重要性</th><th>要求等级</th></tr></thead>
-          <tbody>
-          {% for skill in job.skills %}
-            <tr>
-              <td>{{ skill.name }}</td>
-              <td>{{ skill.category }}</td>
-              <td>{% if skill.importance == 'must' %}<span class="badge text-bg-danger">必须</span>{% else %}<span class="badge text-bg-secondary">加分</span>{% endif %}</td>
-              <td>{{ skill.required_level }} / 5</td>
-            </tr>
-          {% endfor %}
-          </tbody>
-        </table>
+        <div class="table-responsive">
+          <table class="table mb-0">
+            <thead><tr><th>技能</th><th>类别</th><th>重要性</th><th>要求等级</th></tr></thead>
+            <tbody>
+            {% for skill in job.skills %}
+              <tr>
+                <td>{{ skill.name }}</td>
+                <td>{{ skill.category }}</td>
+                <td>{% if skill.importance == 'must' %}<span class="badge text-bg-danger">必须</span>{% else %}<span class="badge text-bg-secondary">加分</span>{% endif %}</td>
+                <td>{{ skill.required_level }} / 5</td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
         {% else %}
         <div class="p-4 text-muted">岗位技能尚未分析。</div>
         {% endif %}

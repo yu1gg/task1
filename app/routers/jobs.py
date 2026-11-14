@@ -28,10 +28,13 @@ def require_editor(user: User, job: Job) -> None:
         raise HTTPException(status_code=403, detail="无权编辑该岗位")
 
 
+def can_edit_company(user: User, company: Company) -> bool:
+    return user.role == "teacher" or company.created_by == user.id
+
+
 @router.get("")
 def list_jobs(
     request: Request,
-    user: User | None = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     jobs = db.scalars(
@@ -185,9 +188,10 @@ def update_job(
         db.add(company)
         db.flush()
     else:
-        company.industry = industry.strip() or company.industry
-        company.size = size.strip() or company.size
-        company.location = location.strip() or company.location
+        if can_edit_company(user, company):
+            company.industry = industry.strip() or company.industry
+            company.size = size.strip() or company.size
+            company.location = location.strip() or company.location
 
     try:
         headcount_value = max(1, int(headcount))

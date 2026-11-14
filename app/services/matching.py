@@ -22,6 +22,8 @@ class MatchResult:
 def compute_match(student_skills: list[dict], job_skills: list) -> MatchResult:
     normalized: dict[str, int] = {}
     for item in student_skills or []:
+        if not isinstance(item, dict):
+            continue
         key = normalize_skill(item.get("name", ""))
         if not key:
             continue
@@ -41,7 +43,12 @@ def compute_match(student_skills: list[dict], job_skills: list) -> MatchResult:
     matched: list[dict] = []
 
     for skill in job_skills:
-        required_level = max(1, min(5, int(skill.required_level)))
+        try:
+            required_level = int(skill.required_level)
+        except (TypeError, ValueError):
+            required_level = 3
+        required_level = max(1, min(5, required_level))
+        # Unknown importance is treated as "nice" for the MVP.
         weight = 3 if skill.importance == "must" else 1
         student_level = normalized.get(normalize_skill(skill.name), 0)
         coverage = min(student_level / required_level, 1.0)

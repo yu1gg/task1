@@ -1063,6 +1063,8 @@ git commit -m "feat: add SQLite schema and health check"
 - Create: `app/templates/auth/register.html`
 - Modify: `app/templating.py`
 - Modify: `app/main.py`
+- Create: `app/routers/dashboard.py`
+- Create: `app/templates/dashboard/placeholder.html`
 - Create: `tests/helpers.py`
 - Create: `tests/test_auth.py`
 
@@ -1594,12 +1596,40 @@ Create `app/templates/auth/register.html`:
 {% endblock %}
 ```
 
-- [ ] **Step 7: Register the auth router**
+- [ ] **Step 7: Add a minimal dashboard stub and register routers**
+
+Create `app/routers/dashboard.py`:
+
+```python
+from fastapi import APIRouter, Depends, Request
+
+from app.auth import require_user
+from app.models import User
+from app.templating import render
+
+router = APIRouter()
+
+
+@router.get("/dashboard")
+def dashboard(request: Request, user: User = Depends(require_user)):
+    return render(request, "dashboard/placeholder.html", {"user": user})
+```
+
+Create `app/templates/dashboard/placeholder.html`:
+
+```html
+{% extends "base.html" %}
+{% block title %}工作台{% endblock %}
+{% block content %}
+<h1 class="page-title">工作台</h1>
+<p>欢迎，{{ user.real_name }}。</p>
+{% endblock %}
+```
 
 Modify `app/main.py`:
 
 ```python
-from app.routers import auth, health, home
+from app.routers import auth, dashboard, health, home
 ```
 
 and inside `create_app`:
@@ -1608,6 +1638,7 @@ and inside `create_app`:
     app.include_router(health.router)
     app.include_router(home.router)
     app.include_router(auth.router)
+    app.include_router(dashboard.router)
 ```
 
 - [ ] **Step 8: Run the tests to verify they pass**
@@ -1644,12 +1675,12 @@ git commit -m "feat: add registration, login, logout and role guards"
 ## Task 4: Role-specific dashboards
 
 **Files:**
-- Create: `app/routers/dashboard.py`
+- Modify: `app/routers/dashboard.py`
 - Create: `app/templates/dashboard/student.html`
 - Create: `app/templates/dashboard/teacher.html`
 - Create: `app/templates/dashboard/alumni.html`
+- Delete: `app/templates/dashboard/placeholder.html`
 - Modify: `app/templates/base.html`
-- Modify: `app/main.py`
 - Create: `tests/test_dashboard.py`
 
 - [ ] **Step 1: Write the failing tests**
@@ -1696,11 +1727,11 @@ Run:
 pytest tests/test_dashboard.py -v
 ```
 
-Expected: fails because `/dashboard` returns 404.
+Expected: fails because the placeholder dashboard does not contain the role-specific headings `学生工作台` / `教师工作台` / `校友工作台`.
 
-- [ ] **Step 3: Create the dashboard router**
+- [ ] **Step 3: Replace the dashboard stub with role-specific logic**
 
-Create `app/routers/dashboard.py`:
+Replace the contents of `app/routers/dashboard.py` with:
 
 ```python
 from fastapi import APIRouter, Depends, Request
@@ -1949,6 +1980,8 @@ Create `app/templates/dashboard/alumni.html`:
 {% endblock %}
 ```
 
+Delete `app/templates/dashboard/placeholder.html`; it is no longer used.
+
 - [ ] **Step 5: Add dashboard link to the navigation**
 
 Modify `app/templates/base.html` by adding this list item inside the existing left-hand `<ul class="navbar-nav me-auto">`, before the 岗位 link:
@@ -1959,20 +1992,15 @@ Modify `app/templates/base.html` by adding this list item inside the existing le
         {% endif %}
 ```
 
-- [ ] **Step 6: Register the dashboard router**
+- [ ] **Step 6: Confirm the dashboard router is registered**
 
-Modify `app/main.py`:
+`app/main.py` already imports and includes `dashboard.router` from Task 3. Verify:
 
-```python
-from app.routers import auth, dashboard, health, home
+```bash
+grep -n "dashboard" app/main.py
 ```
 
-and inside `create_app`:
-
-```python
-    app.include_router(auth.router)
-    app.include_router(dashboard.router)
-```
+Expected: both the import and `app.include_router(dashboard.router)` are present. No code change.
 
 - [ ] **Step 7: Run the tests to verify they pass**
 

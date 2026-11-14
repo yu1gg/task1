@@ -1227,6 +1227,22 @@ def test_logout_clears_session(client):
     response = client.get("/dashboard", follow_redirects=False)
     assert response.status_code == 303
     assert response.headers["location"] == "/login"
+
+
+def test_verify_password_roundtrip():
+    from app.auth import hash_password, verify_password
+
+    password_hash = hash_password("pass123")
+    assert verify_password("pass123", password_hash) is True
+    assert verify_password("wrong-password", password_hash) is False
+
+
+def test_verify_password_returns_false_for_malformed_hash():
+    from app.auth import verify_password
+
+    assert verify_password("pass123", "not-a-hash") is False
+    assert verify_password("pass123", "") is False
+    assert verify_password("pass123", "$2b$12$short") is False
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -1277,6 +1293,8 @@ def log_event(
 Create `app/auth.py`:
 
 ```python
+import re
+
 import bcrypt
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
@@ -1284,17 +1302,21 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import User
 
+_BCRYPT_PATTERN = re.compile(r"^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$")
+
 
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(password: str, password_hash: str) -> bool:
+    if not password_hash or not _BCRYPT_PATTERN.match(password_hash):
+        return False
     try:
         return bcrypt.checkpw(
             password.encode("utf-8"), password_hash.encode("utf-8")
         )
-    except ValueError:
+    except (ValueError, TypeError):
         return False
 
 
@@ -1659,6 +1681,8 @@ tests/test_auth.py::test_teacher_registration_disabled_when_no_invite_code PASSE
 tests/test_auth.py::test_teacher_can_register_with_invite_code PASSED
 tests/test_auth.py::test_password_is_hashed_and_not_stored_plaintext PASSED
 tests/test_auth.py::test_logout_clears_session PASSED
+tests/test_auth.py::test_verify_password_roundtrip PASSED
+tests/test_auth.py::test_verify_password_returns_false_for_malformed_hash PASSED
 ```
 
 - [ ] **Step 9: Commit**

@@ -2926,6 +2926,55 @@ def test_multiple_entries_take_max_level():
     )
     assert result.score == 100
     assert result.gaps == []
+
+
+def test_normalize_skill_aliases():
+    assert normalize_skill("JS") == "javascript"
+    assert normalize_skill("Py") == "python"
+    assert normalize_skill("torch") == "pytorch"
+    assert normalize_skill("大模型") == "large language model"
+
+
+def test_gap_ordering_must_first_then_largest_deficit():
+    result = compute_match(
+        [],
+        [
+            job_skill("A-nice", "nice", 5),
+            job_skill("B-must", "must", 2),
+            job_skill("C-must", "must", 5),
+        ],
+    )
+    assert [gap.name for gap in result.gaps] == ["C-must", "B-must", "A-nice"]
+
+
+def test_matched_payload_and_fractional_coverage():
+    result = compute_match(
+        [{"name": "Python", "level": 5}, {"name": "SQL", "level": 2}],
+        [job_skill("Python", "must", 5), job_skill("SQL", "nice", 4)],
+    )
+    assert result.score == 88
+    assert len(result.matched) == 1
+    assert result.matched[0]["name"] == "Python"
+    assert result.matched[0]["coverage"] == 1.0
+    assert len(result.gaps) == 1
+    assert result.gaps[0].name == "SQL"
+
+
+def test_malformed_required_level_defaults_to_three():
+    result = compute_match(
+        [{"name": "Python", "level": 2}],
+        [job_skill("Python", "must", None)],
+    )
+    assert result.score == 67
+    assert result.gaps[0].required_level == 3
+
+
+def test_ignores_non_dict_student_entries():
+    result = compute_match(
+        [None, {"name": "Python", "level": 3}],
+        [job_skill("Python", "must", 3)],
+    )
+    assert result.score == 100
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -2943,8 +2992,30 @@ Expected: fails because `app.services.matching` does not exist.
 Create `app/services/skills.py`:
 
 ```python
+ALIASES = {
+    "js": "javascript",
+    "javascript": "javascript",
+    "py": "python",
+    "python3": "python",
+    "mysql": "sql",
+    "postgresql": "sql",
+    "torch": "pytorch",
+    "pytorch": "pytorch",
+    "tf": "tensorflow",
+    "tensorflow": "tensorflow",
+    "ml": "machine learning",
+    "machine learning": "machine learning",
+    "深度学习": "deep learning",
+    "deep learning": "deep learning",
+    "llm": "large language model",
+    "大模型": "large language model",
+    "large language model": "large language model",
+}
+
+
 def normalize_skill(name: str) -> str:
-    return " ".join(str(name).strip().lower().split())
+    key = " ".join(str(name).strip().lower().split())
+    return ALIASES.get(key, key)
 ```
 
 - [ ] **Step 4: Create the matching service**
@@ -2976,6 +3047,8 @@ class MatchResult:
 def compute_match(student_skills: list[dict], job_skills: list) -> MatchResult:
     normalized: dict[str, int] = {}
     for item in student_skills or []:
+        if not isinstance(item, dict):
+            continue
         key = normalize_skill(item.get("name", ""))
         if not key:
             continue
@@ -2995,7 +3068,12 @@ def compute_match(student_skills: list[dict], job_skills: list) -> MatchResult:
     matched: list[dict] = []
 
     for skill in job_skills:
-        required_level = max(1, min(5, int(skill.required_level)))
+        try:
+            required_level = int(skill.required_level)
+        except (TypeError, ValueError):
+            required_level = 3
+        required_level = max(1, min(5, required_level))
+        # Unknown importance values are treated as "nice" for the MVP.
         weight = 3 if skill.importance == "must" else 1
         student_level = normalized.get(normalize_skill(skill.name), 0)
         coverage = min(student_level / required_level, 1.0)
@@ -3053,6 +3131,11 @@ tests/test_matching.py::test_score_and_gaps PASSED
 tests/test_matching.py::test_no_job_skills PASSED
 tests/test_matching.py::test_student_without_skills_gets_zero PASSED
 tests/test_matching.py::test_multiple_entries_take_max_level PASSED
+tests/test_matching.py::test_normalize_skill_aliases PASSED
+tests/test_matching.py::test_gap_ordering_must_first_then_largest_deficit PASSED
+tests/test_matching.py::test_matched_payload_and_fractional_coverage PASSED
+tests/test_matching.py::test_malformed_required_level_defaults_to_three PASSED
+tests/test_matching.py::test_ignores_non_dict_student_entries PASSED
 ```
 
 - [ ] **Step 6: Commit**

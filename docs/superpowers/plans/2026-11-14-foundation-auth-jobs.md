@@ -4322,6 +4322,22 @@ def test_format_skills_null_level_defaults_to_three():
         format_skills([{"name": "Python", "level": None, "evidence": ""}])
         == "Python | 3 | "
     )
+
+
+def test_short_header_is_padded_not_dropped():
+    items = parse_blocks("课程项目 | 成员", ["name", "role", "period"])
+    assert len(items) == 1
+    assert items[0]["name"] == "课程项目"
+    assert items[0]["role"] == "成员"
+    assert items[0]["period"] == ""
+
+
+def test_pipe_heavy_description_without_blank_line_stays_in_description():
+    text = "P | R | T\n技术栈 | FastAPI | Vue\n\nQ | R | T"
+    items = parse_blocks(text, ["name", "role", "period"])
+    assert len(items) == 2
+    assert items[0]["description"] == "技术栈 | FastAPI | Vue"
+    assert items[1]["name"] == "Q"
 ```
 
 Create `tests/test_profile_routes.py`:
@@ -4498,24 +4514,39 @@ def format_education(items: list[dict]) -> str:
 
 
 def parse_blocks(text: str, fields: list[str]) -> list[dict]:
-    def is_header(line: str) -> bool:
-        if not line.strip():
-            return False
-        parts = [part.strip() for part in line.split("|")]
-        return len(parts) >= len(fields) and bool(parts[0])
-
+    lines = (text or "").splitlines()
     blocks: list[tuple[str, list[str]]] = []
     current_header: str | None = None
     current_description: list[str] = []
+    index = 0
 
-    for line in (text or "").splitlines():
-        if is_header(line):
-            if current_header is not None:
+    while index < len(lines):
+        line = lines[index]
+
+        if not line.strip():
+            blank_start = index
+            while index < len(lines) and not lines[index].strip():
+                index += 1
+            next_line = lines[index] if index < len(lines) else None
+
+            if (
+                current_header is not None
+                and next_line is not None
+                and "|" in next_line
+            ):
                 blocks.append((current_header, current_description))
+                current_header = None
+                current_description = []
+            elif current_header is not None:
+                current_description.extend([""] * (index - blank_start))
+            continue
+
+        if current_header is None:
             current_header = line.strip()
             current_description = []
-        elif current_header is not None:
+        else:
             current_description.append(line.rstrip())
+        index += 1
 
     if current_header is not None:
         blocks.append((current_header, current_description))
@@ -4524,7 +4555,7 @@ def parse_blocks(text: str, fields: list[str]) -> list[dict]:
     for header_line, description_lines in blocks:
         header = [part.strip() for part in header_line.split("|")]
         header += [""] * (len(fields) - len(header))
-        item = {field: header[index] for index, field in enumerate(fields)}
+        item = {field: header[position] for position, field in enumerate(fields)}
         item["description"] = "\n".join(description_lines).strip()
         items.append(item)
     return items
@@ -4674,7 +4705,7 @@ def save_profile(
     )
     profile.awards_json = parse_awards(awards_text[:4000])
     profile.skills_json = parse_skills(skills_text[:4000])
-    profile.availability_from = availability_from.strip() or None
+    profile.availability_from = availability_from.strip()[:20] or None
     profile.availability_note = availability_note.strip()[:200] or None
 
     target_job_id = target_job_id.strip()
@@ -4809,6 +4840,8 @@ tests/test_profile_routes.py::test_closed_target_job_is_not_saved PASSED
 tests/test_profile_routes.py::test_empty_profile_save_and_availability_clear PASSED
 tests/test_profile_text.py::test_projects_preserve_blank_lines_in_description PASSED
 tests/test_profile_text.py::test_format_skills_null_level_defaults_to_three PASSED
+tests/test_profile_text.py::test_short_header_is_padded_not_dropped PASSED
+tests/test_profile_text.py::test_pipe_heavy_description_without_blank_line_stays_in_description PASSED
 ```
 
 - [ ] **Step 8: Commit**

@@ -4952,6 +4952,8 @@ def test_student_sees_match_and_gaps(client):
     assert "匹配度" in response.text
     assert "待补齐技能" in response.text
     assert "Python" in response.text
+    assert "85%" in response.text
+    assert "4 / 5" in response.text
 
 
 def test_student_dashboard_shows_recommendations(client):
@@ -4968,6 +4970,58 @@ def test_student_dashboard_shows_recommendations(client):
     assert response.status_code == 200
     assert "推荐岗位" in response.text
     assert "AI 算法实习生" in response.text
+
+
+def test_student_with_empty_skills_gets_zero_and_gaps(client):
+    make_teacher(client)
+    job_id = create_job(client)
+    add_skills(job_id)
+
+    client.post("/logout", follow_redirects=False)
+    make_student(client)
+
+    response = client.get(f"/jobs/{job_id}")
+
+    assert response.status_code == 200
+    assert "0%" in response.text
+    assert "待补齐技能" in response.text
+
+
+def test_job_without_skills_shows_analysis_prompt(client):
+    make_teacher(client)
+    job_id = create_job(client)
+
+    client.post("/logout", follow_redirects=False)
+    make_student(client)
+    client.post("/profile", data=PROFILE_DATA, follow_redirects=False)
+
+    response = client.get(f"/jobs/{job_id}")
+
+    assert "岗位技能尚未分析" in response.text
+
+
+def test_teacher_does_not_see_match_card(client):
+    make_teacher(client)
+    job_id = create_job(client)
+    add_skills(job_id)
+
+    response = client.get(f"/jobs/{job_id}")
+
+    assert "我的匹配情况" not in response.text
+
+
+def test_dashboard_shows_empty_recommendation_state(client):
+    make_teacher(client)
+    create_job(client)  # no skills, so no recommendations
+
+    client.post("/logout", follow_redirects=False)
+    make_student(client)
+    client.post("/profile", data=PROFILE_DATA, follow_redirects=False)
+
+    response = client.get("/dashboard")
+
+    assert "推荐岗位" in response.text
+    assert "先完善技能资料" in response.text
 ```
 
 Create `tests/test_seed.py`:
@@ -4990,6 +5044,22 @@ def test_seed_database_is_idempotent():
         assert db.scalar(select(func.count()).select_from(User)) == 2
         assert db.scalar(select(func.count()).select_from(Job)) == 1
         assert db.scalar(select(func.count()).select_from(JobSkill)) >= 3
+        assert db.scalar(select(func.count()).select_from(StudentProfile)) == 1
+
+
+def test_seed_repairs_partial_state():
+    with SessionLocal() as db:
+        student = User(
+            username="student",
+            password_hash="x",
+            real_name="张三",
+            role="student",
+        )
+        db.add(student)
+        db.commit()
+
+    with SessionLocal() as db:
+        seed_database(db)
         assert db.scalar(select(func.count()).select_from(StudentProfile)) == 1
 ```
 
@@ -5026,7 +5096,6 @@ def job_detail(
     can_edit = bool(user and can_edit_job(user, job))
 
     match = None
-    profile = None
     if user is not None and user.role == "student":
         profile = db.get(StudentProfile, user.id)
         if profile is not None:
@@ -5039,7 +5108,6 @@ def job_detail(
             "job": job,
             "can_edit": can_edit,
             "match": match,
-            "profile": profile,
         },
     )
 ```
@@ -5155,7 +5223,7 @@ Insert this block in `app/templates/dashboard/student.html`, before the existing
         <div class="d-flex justify-content-between align-items-center">
           <div>
             <div class="fw-semibold">{{ item.job.title }}</div>
-            <div class="form-hint">{{ item.job.company.name }} · 待补齐 {{ item.gap_count }} 项技能</div>
+            <div class="form-hint">{{ item.job.company.name }} · {% if item.gap_count > 0 %}待补齐 {{ item.gap_count }} 项技能{% else %}技能已达标{% endif %}</div>
           </div>
           <span class="badge text-bg-primary">{{ item.score }}%</span>
         </div>
@@ -5269,7 +5337,10 @@ def seed_database(db) -> dict:
         db.flush()
 
     job = db.scalar(
-        select(Job).where(Job.title == "AI 算法实习生")
+        select(Job).where(
+            Job.title == "AI 算法实习生",
+            Job.created_by == teacher.id,
+        )
     )
     if job is None:
         job = Job(
@@ -5412,7 +5483,12 @@ Expected:
 ```text
 tests/test_gap_view.py::test_student_sees_match_and_gaps PASSED
 tests/test_gap_view.py::test_student_dashboard_shows_recommendations PASSED
+tests/test_gap_view.py::test_student_with_empty_skills_gets_zero_and_gaps PASSED
+tests/test_gap_view.py::test_job_without_skills_shows_analysis_prompt PASSED
+tests/test_gap_view.py::test_teacher_does_not_see_match_card PASSED
+tests/test_gap_view.py::test_dashboard_shows_empty_recommendation_state PASSED
 tests/test_seed.py::test_seed_database_is_idempotent PASSED
+tests/test_seed.py::test_seed_repairs_partial_state PASSED
 ```
 
 - [ ] **Step 10: Run the full test suite and a manual smoke test**

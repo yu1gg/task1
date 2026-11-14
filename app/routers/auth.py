@@ -63,7 +63,10 @@ def register(
         if not settings.teacher_invite_code:
             flash(request, "教师注册未开启，请联系管理员", "danger")
             return RedirectResponse("/register", status_code=303)
-        if not hmac.compare_digest(teacher_code.strip(), settings.teacher_invite_code):
+        if not hmac.compare_digest(
+            teacher_code.strip().encode("utf-8"),
+            settings.teacher_invite_code.encode("utf-8"),
+        ):
             flash(request, "教师邀请码错误", "danger")
             return RedirectResponse("/register", status_code=303)
 

@@ -156,3 +156,34 @@ def test_register_validation_errors(client):
     assert response.status_code == 303
     response = client.get("/register")
     assert "请填写真实姓名" in response.text
+
+
+def test_teacher_can_register_with_non_ascii_invite_code(client, monkeypatch):
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "teacher_invite_code", "教师邀请码2026")
+
+    response = register(
+        client,
+        username="teacher_cn",
+        real_name="中文老师",
+        role="teacher",
+        teacher_code="教师邀请码2026",
+        major="",
+        grade="",
+    )
+    assert response.status_code == 303
+
+    response = register(
+        client,
+        username="teacher_cn_bad",
+        real_name="错误老师",
+        role="teacher",
+        teacher_code="错误邀请码",
+        major="",
+        grade="",
+    )
+    assert response.status_code == 303
+
+    response = client.get("/register")
+    assert "教师邀请码错误" in response.text

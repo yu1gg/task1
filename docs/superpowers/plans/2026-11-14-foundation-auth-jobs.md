@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Execution note (2026-11-14):** The Git repository is already initialized on branch `p1-foundation` with `origin` configured. Skip the `git init` / branch / remote-add steps in Task 1; only add and commit. Do not push.
+
 **Goal:** Build the first runnable vertical slice: a FastAPI web app with registration/login, role dashboards, job posting with AI skill extraction, student skill self-assessment, basic matching, and a seeded demo dataset.
 
 **Architecture:** Single FastAPI application with Jinja2 server-rendered pages, SQLAlchemy 2.0 over SQLite, signed-cookie sessions, and a thin service layer for LLM calls, text parsing, matching, and usage logging. Templates use vendored Bootstrap 5 with a small custom stylesheet and minimal vanilla JS.
@@ -131,6 +133,7 @@ pydantic==2.10.4
 pydantic-settings==2.7.1
 bcrypt==4.2.1
 httpx==0.28.1
+itsdangerous==2.2.0
 pytest==8.3.4
 ```
 
@@ -148,6 +151,8 @@ test_app.db
 *.wav
 *.mp3
 *.zip
+AI赋能职业发展和面试指导产品.docx
+guide.txt
 ```
 
 Create `.env.example`:
@@ -155,10 +160,12 @@ Create `.env.example`:
 ```text
 DATABASE_URL=sqlite:///./data/app.db
 SESSION_SECRET=change-me-to-a-long-random-string
-TEACHER_INVITE_CODE=teacher-demo
+TEACHER_INVITE_CODE=change-me-to-a-strong-code
 DEEPSEEK_API_KEY=
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 LLM_MODEL=deepseek-chat
+LLM_TIMEOUT_SECONDS=60
+LLM_MAX_RETRIES=2
 DATA_DIR=data
 ```
 
@@ -235,7 +242,7 @@ class Settings(BaseSettings):
     app_name: str = "AI 职业发展平台"
     database_url: str = "sqlite:///./data/app.db"
     session_secret: str = "dev-only-change-me"
-    teacher_invite_code: str = "teacher-demo"
+    teacher_invite_code: str = ""
     data_dir: Path = Path("data")
     deepseek_api_key: str = ""
     deepseek_base_url: str = "https://api.deepseek.com"
@@ -250,10 +257,14 @@ settings = Settings()
 Create `app/templating.py`:
 
 ```python
+from pathlib import Path
+
 from fastapi import Request
 from fastapi.templating import Jinja2Templates
 
-templates = Jinja2Templates(directory="app/templates")
+templates = Jinja2Templates(
+    directory=str(Path(__file__).resolve().parent / "templates")
+)
 
 ROLE_LABELS = {"student": "学生", "teacher": "教师", "alumni": "校友"}
 
@@ -271,14 +282,15 @@ def render(
     status_code: int = 200,
 ):
     ctx = {
-        "request": request,
         "user": None,
         "role_label": "",
         "flashes": request.session.pop("_flashes", []),
     }
     if context:
         ctx.update(context)
-    return templates.TemplateResponse(template_name, ctx, status_code=status_code)
+    return templates.TemplateResponse(
+        request, template_name, ctx, status_code=status_code
+    )
 ```
 
 - [ ] **Step 5: Create the minimal app and routers**
@@ -317,6 +329,7 @@ Create `app/main.py`:
 
 ```python
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -341,7 +354,11 @@ def create_app() -> FastAPI:
         https_only=False,
         max_age=7 * 24 * 3600,
     )
-    app.mount("/static", StaticFiles(directory="app/static"), name="static")
+    app.mount(
+        "/static",
+        StaticFiles(directory=str(Path(__file__).resolve().parent / "static")),
+        name="static",
+    )
     app.include_router(health.router)
     app.include_router(home.router)
     return app
@@ -931,6 +948,7 @@ Modify `app/main.py`:
 
 ```python
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -957,7 +975,11 @@ def create_app() -> FastAPI:
         https_only=False,
         max_age=7 * 24 * 3600,
     )
-    app.mount("/static", StaticFiles(directory="app/static"), name="static")
+    app.mount(
+        "/static",
+        StaticFiles(directory=str(Path(__file__).resolve().parent / "static")),
+        name="static",
+    )
     app.include_router(health.router)
     app.include_router(home.router)
     return app
@@ -1141,6 +1163,26 @@ def test_teacher_requires_invite_code(client):
     assert "教师邀请码错误" in response.text
 
 
+def test_teacher_registration_disabled_when_no_invite_code(client, monkeypatch):
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "teacher_invite_code", "")
+
+    response = register(
+        client,
+        username="teacher_disabled",
+        real_name="未开启老师",
+        role="teacher",
+        teacher_code="",
+        major="",
+        grade="",
+    )
+    assert response.status_code == 303
+
+    response = client.get("/register")
+    assert "教师注册未开启" in response.text
+
+
 def test_teacher_can_register_with_invite_code(client):
     response = make_teacher(client)
     assert response.status_code == 303
@@ -1270,13 +1312,17 @@ def require_teacher(user: User = Depends(require_user)) -> User:
 Modify `app/templating.py`:
 
 ```python
+from pathlib import Path
+
 from fastapi import Request
 from fastapi.templating import Jinja2Templates
 
 from app.db import SessionLocal
 from app.models import User
 
-templates = Jinja2Templates(directory="app/templates")
+templates = Jinja2Templates(
+    directory=str(Path(__file__).resolve().parent / "templates")
+)
 
 ROLE_LABELS = {"student": "学生", "teacher": "教师", "alumni": "校友"}
 
@@ -1300,14 +1346,15 @@ def render(
             user = db.get(User, user_id)
 
     ctx = {
-        "request": request,
         "user": user,
         "role_label": ROLE_LABELS.get(user.role, user.role) if user else "",
         "flashes": request.session.pop("_flashes", []),
     }
     if context:
         ctx.update(context)
-    return templates.TemplateResponse(template_name, ctx, status_code=status_code)
+    return templates.TemplateResponse(
+        request, template_name, ctx, status_code=status_code
+    )
 ```
 
 - [ ] **Step 5: Create the authentication router**
@@ -1375,9 +1422,13 @@ def register(
         flash(request, "用户名已存在，请换一个", "danger")
         return RedirectResponse("/register", status_code=303)
 
-    if role == "teacher" and teacher_code.strip() != settings.teacher_invite_code:
-        flash(request, "教师邀请码错误", "danger")
-        return RedirectResponse("/register", status_code=303)
+    if role == "teacher":
+        if not settings.teacher_invite_code:
+            flash(request, "教师注册未开启，请联系管理员", "danger")
+            return RedirectResponse("/register", status_code=303)
+        if teacher_code.strip() != settings.teacher_invite_code:
+            flash(request, "教师邀请码错误", "danger")
+            return RedirectResponse("/register", status_code=303)
 
     user = User(
         username=username,
@@ -1554,6 +1605,7 @@ Expected:
 tests/test_auth.py::test_register_student_and_login PASSED
 tests/test_auth.py::test_duplicate_username_shows_error PASSED
 tests/test_auth.py::test_teacher_requires_invite_code PASSED
+tests/test_auth.py::test_teacher_registration_disabled_when_no_invite_code PASSED
 tests/test_auth.py::test_teacher_can_register_with_invite_code PASSED
 tests/test_auth.py::test_password_is_hashed_and_not_stored_plaintext PASSED
 tests/test_auth.py::test_logout_clears_session PASSED

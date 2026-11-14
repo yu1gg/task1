@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.auth import require_user
 from app.db import get_db
-from app.models import Job, StudentProfile, User
+from app.models import Job, ResumeExportTask, StudentProfile, User
 from app.services.matching import compute_match
 from app.templating import render
 
@@ -40,6 +40,7 @@ def dashboard(
                 "student_count": student_count,
                 "job_count": job_count,
                 "jobs": jobs,
+                "recent_exports": db.scalars(select(ResumeExportTask).where(ResumeExportTask.teacher_id == user.id).order_by(ResumeExportTask.created_at.desc()).limit(5)).all(),
             },
         )
 

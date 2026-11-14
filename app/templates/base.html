@@ -23,6 +23,11 @@
         <li class="nav-item"><a class="nav-link" href="/jobs">岗位</a></li>
         {% if user and user.role == 'student' %}
         <li class="nav-item"><a class="nav-link" href="/profile">我的资料</a></li>
+        <li class="nav-item"><a class="nav-link" href="/resumes">我的简历</a></li>
+        <li class="nav-item"><a class="nav-link" href="/interviews">语音面试</a></li>
+        {% endif %}
+        {% if user and user.role == 'teacher' %}
+        <li class="nav-item"><a class="nav-link" href="/teacher/usage">使用记录</a></li>
         {% endif %}
       </ul>
       <ul class="navbar-nav">

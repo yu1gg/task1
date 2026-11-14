@@ -2,9 +2,20 @@
 {% block title %}我的资料{% endblock %}
 {% block content %}
 <h1 class="page-title">我的资料</h1>
+{% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
 <div class="card">
   <div class="card-body">
     <form method="post" action="/profile">
+      <input type="hidden" name="contact_revision" value="{{ profile.contact_revision }}">
+      <fieldset class="border rounded p-3 mb-4">
+        <legend class="h6">联系方式与教师导出授权</legend>
+        <div class="row g-3 mb-3">
+          <div class="col-md-6"><label for="phone" class="form-label">电话（可选）</label><input id="phone" name="phone" type="tel" maxlength="40" class="form-control" value="{{ profile.phone or '' }}"></div>
+          <div class="col-md-6"><label for="email" class="form-label">邮箱（可选）</label><input id="email" name="email" type="email" maxlength="120" class="form-control" value="{{ profile.email or '' }}"></div>
+        </div>
+        <div class="form-check"><input id="share_contacts" name="share_contacts" value="true" type="checkbox" class="form-check-input" {% if profile.share_contacts %}checked{% endif %}><label for="share_contacts" class="form-check-label">允许教师在岗位推荐的批量简历中导出上述电话和邮箱</label></div>
+        <p class="form-hint mt-2 mb-0">默认未授权。撤回授权或修改联系方式后，含旧联系方式的导出任务失效，已经下载的文件无法撤回。私人简历和面试记录不会向教师开放。请将联系方式填写在专用字段；自由文本中的个人信息不提供自动脱敏。</p>
+      </fieldset>
       <div class="mb-4">
         <label class="form-label" for="summary">个人简介</label>
         <textarea class="form-control" id="summary" name="summary" rows="3" placeholder="一句话介绍你的方向、优势和目标。">{{ profile.summary }}</textarea>

@@ -4,6 +4,8 @@ os.environ["DATABASE_URL"] = "sqlite:///./test_app.db"
 os.environ["SESSION_SECRET"] = "test-secret"
 os.environ["TEACHER_INVITE_CODE"] = "teacher-secret"
 os.environ["DEEPSEEK_API_KEY"] = "test-key"
+os.environ["INTERVIEW_WORKER_ENABLED"] = "false"
+os.environ["RESUME_EXPORT_WORKER_ENABLED"] = "false"
 
 import pytest
 from fastapi.testclient import TestClient

@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="page-title">{{ job.title }} · 学生匹配排名</h1>
+<a class="btn btn-sm btn-outline-secondary mb-3" href="/teacher/usage">使用记录</a>
+<form method="get" class="d-flex gap-2 flex-wrap align-items-end mb-3"><label class="form-label">最迟到岗日期 <input class="form-control" type="date" name="available_by" value="{{ available_by }}"></label><button class="btn btn-outline-primary mb-2">筛选</button></form>
+{% if not job.skills %}<p>岗位尚未分析技能，暂不提供有效匹配分数。</p>{% endif %}
+{% if not llm_configured %}<p>请配置 DEEPSEEK_API_KEY 后生成简历或 AI 解释；规则排名可正常查看。</p>{% endif %}
+<form method="post" action="/teacher/jobs/{{ job.id }}/resume-exports">
+<input type="hidden" name="request_key" value="{{ request_key }}">
+<p>勾选学生后生成简历任务，每次最多10人。</p>
+<div class="table-responsive"><table class="table table-hover align-middle" style="min-width:960px"><thead><tr><th>选择</th><th>姓名</th><th>专业</th><th>年级</th><th>规则分</th><th>技能差距</th><th>到岗日期</th><th>AI解释</th></tr></thead><tbody>
+{% for row in rows %}<tr>
+<td><input type="checkbox" name="student_ids" value="{{ row.student.id }}"></td>
+<td>{{ row.student.real_name }}</td><td>{{ row.student.major or '未填写' }}</td><td>{{ row.student.grade or '未填写' }}</td>
+<td>{% if row.match.has_job_skills %}{{ row.match.score }}{% else %}未分析{% endif %}{% if not row.has_skills %}<p>暂无技能资料</p>{% endif %}</td>
+<td>{% for gap in row.match.gaps %}{{ gap.name }}：{{ gap.student_level }}/{{ gap.required_level }}{% if not loop.last %}；{% endif %}{% endfor %}</td>
+<td>{{ row.available or '未知' }}</td>
+<td><button type="button" class="explain" data-url="/teacher/jobs/{{ job.id }}/students/{{ row.student.id }}/explanation" {% if not llm_configured or not job.skills %}disabled{% endif %}>查看解释</button><div class="explanation" aria-live="polite"></div></td>
+</tr>{% else %}<tr><td colspan="8">暂无符合条件的学生</td></tr>{% endfor %}
+</tbody></table></div>
+<button class="btn btn-primary" type="submit" {% if not llm_configured %}disabled{% endif %}>为选中学生生成简历（最多10人）</button>
+</form>
+<script>
+document.querySelectorAll('.explain').forEach(button => button.addEventListener('click', async () => {
+  const target = button.nextElementSibling;
+  button.disabled = true;
+  target.textContent = '正在生成解释…';
+  try {
+    const response = await fetch(button.dataset.url, {method: 'POST'});
+    const data = await response.json();
+    target.textContent = response.ok ? '匹配原因：' + data.reasons.join('；') + '\n建议：' + data.suggestions.join('；') : (typeof data.detail === 'string' ? data.detail : '解释生成失败');
+  } catch (_) { target.textContent = '网络异常，请稍后重试'; }
+  finally { button.disabled = false; }
+}));
+document.querySelector('form[method="post"]').addEventListener('submit', event => {
+  const count = document.querySelectorAll('input[name="student_ids"]:checked').length;
+  if (count < 1 || count > 10) { event.preventDefault(); alert('请选择1至10名学生'); }
+});
+</script>
+{% endblock %}

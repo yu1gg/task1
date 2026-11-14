@@ -1,7 +1,7 @@
 import re
-from typing import Any
+from typing import Annotated, Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 IMPORTANCE_MAP = {
     "must": "must",
@@ -81,3 +81,68 @@ class JobSkillExtraction(BaseModel):
     summary: str = Field(default="", max_length=500)
     responsibilities: list[str] = Field(default_factory=list, max_length=10)
     skills: list[JobSkillItem] = Field(default_factory=list, max_length=30)
+
+
+# Resume models deliberately forbid unknown fields so AI output and editor input
+# cannot silently add unsupported information.
+ResumeText = Annotated[str, Field(max_length=120)]
+ResumeBullet = Annotated[str, Field(max_length=60)]
+
+
+class ResumeModel(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+
+class ResumeEducation(ResumeModel):
+    school: ResumeText = ""
+    major: ResumeText = ""
+    degree: ResumeText = ""
+    period: ResumeText = ""
+
+
+class ResumeSkill(ResumeModel):
+    name: ResumeText
+    evidence: ResumeText = ""
+
+
+class ResumeProject(ResumeModel):
+    name: ResumeText = ""
+    role: ResumeText = ""
+    period: ResumeText = ""
+    bullets: list[ResumeBullet] = Field(default_factory=list, max_length=3)
+
+
+class ResumeInternship(ResumeModel):
+    company: ResumeText = ""
+    role: ResumeText = ""
+    period: ResumeText = ""
+    bullets: list[ResumeBullet] = Field(default_factory=list, max_length=3)
+
+
+def _resume_string_length(value: Any) -> int:
+    if isinstance(value, str):
+        return len(value)
+    if isinstance(value, dict):
+        return sum(_resume_string_length(item) for item in value.values())
+    if isinstance(value, list):
+        return sum(_resume_string_length(item) for item in value)
+    return 0
+
+
+class ResumeContent(ResumeModel):
+    name: str = Field(min_length=1, max_length=64)
+    phone: str = Field(default="", max_length=40)
+    email: ResumeText = ""
+    target_job: ResumeText = ""
+    summary: ResumeText = ""
+    education: list[ResumeEducation] = Field(default_factory=list, max_length=3)
+    skills: list[ResumeSkill] = Field(default_factory=list, max_length=12)
+    projects: list[ResumeProject] = Field(default_factory=list, max_length=3)
+    internships: list[ResumeInternship] = Field(default_factory=list, max_length=3)
+    awards: list[ResumeText] = Field(default_factory=list, max_length=5)
+
+    @model_validator(mode="after")
+    def limit_body(self):
+        if _resume_string_length(self.model_dump()) > 1200:
+            raise ValueError("简历正文最多1200字，请精简内容")
+        return self

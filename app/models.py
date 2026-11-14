@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, JSON, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, JSON, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -32,6 +32,10 @@ class StudentProfile(Base):
 
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
     summary: Mapped[str] = mapped_column(Text, default="")
+    phone: Mapped[str] = mapped_column(String(40), default="", server_default="")
+    email: Mapped[str] = mapped_column(String(120), default="", server_default="")
+    share_contacts: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    contact_revision: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     education_json: Mapped[list] = mapped_column(JSON, default=list)
     skills_json: Mapped[list] = mapped_column(JSON, default=list)
     projects_json: Mapped[list] = mapped_column(JSON, default=list)
@@ -129,6 +133,7 @@ class Interview(Base):
     ended_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     report_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     total_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    context_json: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")
 
     turns: Mapped[list["InterviewTurn"]] = relationship(
         back_populates="interview",
@@ -148,6 +153,7 @@ class InterviewTurn(Base):
     question: Mapped[str] = mapped_column(Text)
     question_audio_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
     answer_video_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    answer_audio_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
     answer_transcript: Mapped[str | None] = mapped_column(Text, nullable=True)
     ai_feedback: Mapped[str | None] = mapped_column(Text, nullable=True)
     score_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
@@ -172,6 +178,36 @@ class UsageEvent(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, index=True
     )
+
+
+class ResumeExportTask(Base):
+    __tablename__ = "resume_export_tasks"
+    __table_args__ = (UniqueConstraint("teacher_id", "request_key"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    teacher_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    job_id: Mapped[int] = mapped_column(ForeignKey("jobs.id"))
+    request_key: Mapped[str] = mapped_column(String(64))
+    status: Mapped[str] = mapped_column(String(20), default="queued", index=True)
+    job_snapshot: Mapped[dict] = mapped_column(JSON, default=dict)
+    archive_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+
+
+class ResumeExportItem(Base):
+    __tablename__ = "resume_export_items"
+    __table_args__ = (UniqueConstraint("task_id", "student_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    task_id: Mapped[int] = mapped_column(ForeignKey("resume_export_tasks.id"), index=True)
+    student_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    snapshot_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
+    file_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    filename: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 Index("ix_job_skills_job_sort", JobSkill.job_id, JobSkill.sort_order)

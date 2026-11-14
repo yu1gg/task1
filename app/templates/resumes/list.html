@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}我的简历{% endblock %}
+{% block content %}
+<h1 class="page-title">我的简历</h1>
+{% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
+<div class="card mb-4"><div class="card-body">
+  <h2 class="h5">按目标岗位生成</h2>
+  <p class="text-muted">AI 从你的真实资料中摘选、排序，不编写新经历。请先<a href="/profile">完善资料</a>，生成后核对并补充联系方式。</p>
+  {% if jobs %}
+  <form method="post" action="/resumes/generate" id="generate-resume" class="d-flex gap-2 flex-wrap">
+    <label for="job" class="visually-hidden">目标岗位</label>
+    <select id="job" name="job_id" class="form-select w-auto mw-100" required>
+      {% for job in jobs %}<option value="{{ job.id }}" {% if selected_job == job.id %}selected{% endif %}>{{ job.title }} · {{ job.company.name }}</option>{% endfor %}
+    </select>
+    <button class="btn btn-primary" type="submit">AI 生成新简历</button>
+  </form>
+  <p class="form-hint mt-2">每次生成会新增一份简历，原有简历保留。生成可能需要等待。</p>
+  <script>document.getElementById('generate-resume').addEventListener('submit', function () { const b=this.querySelector('button'); b.disabled=true; b.textContent='正在生成，请稍候…'; });</script>
+  {% else %}<p>暂无开放岗位，岗位发布后即可生成。</p>{% endif %}
+</div></div>
+<div class="list-group">
+{% for item in resumes %}
+<a href="/resumes/{{ item.id }}/edit" class="list-group-item list-group-item-action d-flex justify-content-between"><span>{{ item.title }}</span><span class="text-muted">版本 {{ item.version }}</span></a>
+{% else %}<div class="card card-body text-muted">还没有简历，从上方选择岗位开始。</div>{% endfor %}
+</div>
+{% endblock %}

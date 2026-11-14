@@ -19,6 +19,13 @@
 </div>
 
 <div class="row g-3">
+  {% if user and user.role == 'teacher' %}
+  <div class="col-12"><a class="btn btn-primary" href="/teacher/jobs/{{ job.id }}/matches">学生匹配与批量简历</a></div>
+  {% endif %}
+  {% if user and user.role == 'student' and job.status == 'open' %}
+  <div class="col-12"><a class="btn btn-primary" href="/resumes?job_id={{ job.id }}">按此岗位生成简历</a></div>
+  <div class="col-12"><a class="btn btn-outline-primary" href="/interviews?job_id={{ job.id }}">按此岗位语音面试</a></div>
+  {% endif %}
   <div class="col-lg-8">
     <div class="card mb-3">
       <div class="card-header">岗位描述</div>

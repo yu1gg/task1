@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.auth import require_user
 from app.db import get_db
 from app.models import Job, StudentProfile, User
+from app.services.matching import compute_match
 from app.templating import render
 
 router = APIRouter()
@@ -70,11 +71,25 @@ def dashboard(
 
     jobs = db.scalars(
         select(Job)
-        .options(selectinload(Job.company))
+        .options(selectinload(Job.company), selectinload(Job.skills))
         .where(Job.status == "open")
         .order_by(Job.created_at.desc())
-        .limit(5)
+        .limit(20)
     ).all()
+
+    recommendations = []
+    for job in jobs:
+        result = compute_match(skills, job.skills)
+        if result.has_job_skills:
+            recommendations.append(
+                {
+                    "job": job,
+                    "score": result.score,
+                    "gap_count": len(result.gaps),
+                }
+            )
+    recommendations.sort(key=lambda item: item["score"], reverse=True)
+    recommendations = recommendations[:5]
 
     return render(
         request,
@@ -82,6 +97,7 @@ def dashboard(
         {
             "completion": completion,
             "skill_count": len(skills),
-            "jobs": jobs,
+            "jobs": jobs[:5],
+            "recommendations": recommendations,
         },
     )

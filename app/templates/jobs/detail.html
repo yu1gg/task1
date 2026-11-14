@@ -66,6 +66,34 @@
         </dl>
       </div>
     </div>
+    {% if user and user.role == 'student' %}
+    <div class="card mt-3">
+      <div class="card-header">我的匹配情况</div>
+      <div class="card-body">
+        {% if match is none %}
+        <p class="mb-2">先完善你的技能资料，才能计算匹配度。</p>
+        <a class="btn btn-sm btn-primary" href="/profile">完善资料</a>
+        {% elif not match.has_job_skills %}
+        <p class="text-muted mb-0">岗位技能尚未分析，暂时无法计算匹配度。</p>
+        {% else %}
+        <div class="d-flex align-items-baseline gap-2 mb-2">
+          <span class="display-6 fw-bold">{{ match.score }}%</span>
+          <span class="text-muted">匹配度</span>
+        </div>
+        {% if match.gaps %}
+        <div class="fw-semibold mb-2">待补齐技能</div>
+        <ul class="mb-0 ps-3">
+          {% for gap in match.gaps %}
+          <li>{{ gap.name }}：{{ gap.student_level }} / {{ gap.required_level }}（{% if gap.importance == 'must' %}必须{% else %}加分{% endif %}）</li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-success mb-0">技能要求已全部达到。</p>
+        {% endif %}
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

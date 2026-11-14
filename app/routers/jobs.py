@@ -5,8 +5,9 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.auth import get_current_user, require_user
 from app.db import get_db
-from app.models import Company, Job, JobSkill, User
+from app.models import Company, Job, JobSkill, StudentProfile, User
 from app.services.job_skills import extract_job_skills
+from app.services.matching import compute_match
 from app.services.llm import LLMClient, LLMError, get_llm_client
 from app.services.usage import log_event
 from app.templating import flash, render
@@ -133,10 +134,23 @@ def job_detail(
 ):
     job = get_job_or_404(db, job_id)
     can_edit = bool(user and can_edit_job(user, job))
+
+    match = None
+    profile = None
+    if user is not None and user.role == "student":
+        profile = db.get(StudentProfile, user.id)
+        if profile is not None:
+            match = compute_match(profile.skills_json or [], job.skills)
+
     return render(
         request,
         "jobs/detail.html",
-        {"job": job, "can_edit": can_edit},
+        {
+            "job": job,
+            "can_edit": can_edit,
+            "match": match,
+            "profile": profile,
+        },
     )
 
 

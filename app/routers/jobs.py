@@ -312,12 +312,14 @@ async def update_skills(
         importance = _form_value(form, "skill_importance", index, "nice")
         if importance not in {"must", "nice"}:
             importance = "nice"
+        category = _form_value(
+            form, "skill_category", index, "通用"
+        ).strip() or "通用"
         db.add(
             JobSkill(
                 job_id=job.id,
                 name=name,
-                category=_form_value(form, "skill_category", index, "通用")
-                or "通用",
+                category=category,
                 importance=importance,
                 required_level=level,
                 sort_order=index,

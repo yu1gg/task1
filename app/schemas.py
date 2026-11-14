@@ -43,11 +43,15 @@ class JobSkillItem(BaseModel):
     @field_validator("name", mode="before")
     @classmethod
     def normalize_name(cls, value: Any) -> str:
+        if value is None:
+            return ""
         return " ".join(str(value).strip().split())
 
     @field_validator("category", mode="before")
     @classmethod
     def normalize_category(cls, value: Any) -> str:
+        if value is None:
+            return "通用"
         text = " ".join(str(value).strip().split())
         return text or "通用"
 

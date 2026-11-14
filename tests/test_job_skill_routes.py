@@ -4,7 +4,7 @@ from sqlalchemy import func, select
 from app.db import SessionLocal
 from app.main import app
 from app.models import JobSkill
-from app.services.llm import get_llm_client
+from app.services.llm import LLMError, get_llm_client
 from tests.helpers import make_student, make_teacher
 
 JOB_DATA = {
@@ -28,6 +28,11 @@ class FakeLLM:
 
     def chat_json(self, system, user):
         return self.payload
+
+
+class BoomLLM:
+    def chat_json(self, system, user):
+        raise LLMError("boom")
 
 
 def create_job(client):
@@ -123,3 +128,59 @@ def test_non_editor_cannot_extract_skills(client, fake_llm):
         f"/jobs/{job_id}/extract-skills", follow_redirects=False
     )
     assert response.status_code == 403
+
+
+def test_extract_llm_error_preserves_existing_skills(client, fake_llm):
+    make_teacher(client)
+    job_id = create_job(client)
+    client.post(f"/jobs/{job_id}/extract-skills", follow_redirects=False)
+    assert skill_count(job_id) == 2
+
+    app.dependency_overrides[get_llm_client] = lambda: BoomLLM()
+    try:
+        response = client.post(
+            f"/jobs/{job_id}/extract-skills", follow_redirects=True
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert "boom" in response.text
+    assert skill_count(job_id) == 2
+
+
+def test_update_skills_normalizes_blank_category(client):
+    make_teacher(client)
+    job_id = create_job(client)
+
+    response = client.post(
+        f"/jobs/{job_id}/skills",
+        data={
+            "skill_name": ["SQL"],
+            "skill_category": ["   "],
+            "skill_importance": ["nice"],
+            "skill_level": ["3"],
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+
+    with SessionLocal() as db:
+        skill = db.scalar(
+            select(JobSkill).where(JobSkill.job_id == job_id)
+        )
+        assert skill.category == "通用"
+
+
+def test_schema_none_name_rejected_and_none_category_defaults():
+    from pydantic import ValidationError
+
+    from app.schemas import JobSkillExtraction
+
+    with pytest.raises(ValidationError):
+        JobSkillExtraction.model_validate({"skills": [{"name": None}]})
+
+    parsed = JobSkillExtraction.model_validate(
+        {"skills": [{"name": "Python", "category": None}]}
+    )
+    assert parsed.skills[0].category == "通用"

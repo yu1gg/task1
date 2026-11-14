@@ -8,7 +8,13 @@ document.addEventListener("DOMContentLoaded", () => {
       const clone = row.cloneNode(true);
       clone.querySelectorAll("input, select").forEach((input) => {
         if (input.tagName === "SELECT") {
-          input.selectedIndex = 0;
+          if (input.name === "skill_level") {
+            input.value = "3";
+          } else if (input.name === "skill_importance") {
+            input.value = "nice";
+          } else {
+            input.selectedIndex = 0;
+          }
         } else {
           input.value = "";
         }

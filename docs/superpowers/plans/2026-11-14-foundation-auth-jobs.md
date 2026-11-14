@@ -2170,7 +2170,7 @@ Create `tests/test_jobs.py`:
 from sqlalchemy import func, select
 
 from app.db import SessionLocal
-from app.models import Company
+from app.models import Company, Job
 from tests.helpers import make_student, make_teacher
 
 JOB_DATA = {
@@ -2224,6 +2224,28 @@ def test_creator_can_open_edit_page(client):
     response = client.get(f"/jobs/{job_id}/edit")
     assert response.status_code == 200
     assert "AI 算法实习生" in response.text
+
+
+def test_edit_job_updates_fields_and_company(client):
+    make_teacher(client)
+    response = create_job(client)
+    job_id = int(response.headers["location"].split("/")[-1])
+
+    response = client.post(
+        f"/jobs/{job_id}/edit",
+        data={
+            **JOB_DATA,
+            "title": "高级 AI 算法实习生",
+            "industry": "大模型",
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+
+    with SessionLocal() as db:
+        job = db.get(Job, job_id)
+        assert job.title == "高级 AI 算法实习生"
+        assert job.company.industry == "大模型"
 
 
 def test_non_creator_cannot_edit_job(client):
@@ -2449,6 +2471,10 @@ def update_job(
         )
         db.add(company)
         db.flush()
+    else:
+        company.industry = industry.strip() or company.industry
+        company.size = size.strip() or company.size
+        company.location = location.strip() or company.location
 
     try:
         headcount_value = max(1, int(headcount))
@@ -2690,6 +2716,7 @@ Expected:
 tests/test_jobs.py::test_create_and_view_job PASSED
 tests/test_jobs.py::test_company_is_reused PASSED
 tests/test_jobs.py::test_creator_can_open_edit_page PASSED
+tests/test_jobs.py::test_edit_job_updates_fields_and_company PASSED
 tests/test_jobs.py::test_non_creator_cannot_edit_job PASSED
 tests/test_jobs.py::test_job_list_shows_open_jobs PASSED
 ```

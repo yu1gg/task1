@@ -562,7 +562,13 @@ document.addEventListener("DOMContentLoaded", () => {
       const clone = row.cloneNode(true);
       clone.querySelectorAll("input, select").forEach((input) => {
         if (input.tagName === "SELECT") {
-          input.selectedIndex = 0;
+          if (input.name === "skill_level") {
+            input.value = "3";
+          } else if (input.name === "skill_importance") {
+            input.value = "nice";
+          } else {
+            input.selectedIndex = 0;
+          }
         } else {
           input.value = "";
         }
@@ -3539,11 +3545,15 @@ class JobSkillItem(BaseModel):
     @field_validator("name", mode="before")
     @classmethod
     def normalize_name(cls, value: Any) -> str:
+        if value is None:
+            return ""
         return " ".join(str(value).strip().split())
 
     @field_validator("category", mode="before")
     @classmethod
     def normalize_category(cls, value: Any) -> str:
+        if value is None:
+            return "通用"
         text = " ".join(str(value).strip().split())
         return text or "通用"
 
@@ -3781,7 +3791,7 @@ from sqlalchemy import func, select
 from app.db import SessionLocal
 from app.main import app
 from app.models import JobSkill
-from app.services.llm import get_llm_client
+from app.services.llm import LLMError, get_llm_client
 from tests.helpers import make_student, make_teacher
 
 JOB_DATA = {
@@ -3805,6 +3815,11 @@ class FakeLLM:
 
     def chat_json(self, system, user):
         return self.payload
+
+
+class BoomLLM:
+    def chat_json(self, system, user):
+        raise LLMError("boom")
 
 
 def create_job(client):
@@ -3900,6 +3915,62 @@ def test_non_editor_cannot_extract_skills(client, fake_llm):
         f"/jobs/{job_id}/extract-skills", follow_redirects=False
     )
     assert response.status_code == 403
+
+
+def test_extract_llm_error_preserves_existing_skills(client, fake_llm):
+    make_teacher(client)
+    job_id = create_job(client)
+    client.post(f"/jobs/{job_id}/extract-skills", follow_redirects=False)
+    assert skill_count(job_id) == 2
+
+    app.dependency_overrides[get_llm_client] = lambda: BoomLLM()
+    try:
+        response = client.post(
+            f"/jobs/{job_id}/extract-skills", follow_redirects=True
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert "boom" in response.text
+    assert skill_count(job_id) == 2
+
+
+def test_update_skills_normalizes_blank_category(client):
+    make_teacher(client)
+    job_id = create_job(client)
+
+    response = client.post(
+        f"/jobs/{job_id}/skills",
+        data={
+            "skill_name": ["SQL"],
+            "skill_category": ["   "],
+            "skill_importance": ["nice"],
+            "skill_level": ["3"],
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+
+    with SessionLocal() as db:
+        skill = db.scalar(
+            select(JobSkill).where(JobSkill.job_id == job_id)
+        )
+        assert skill.category == "通用"
+
+
+def test_schema_none_name_rejected_and_none_category_defaults():
+    from pydantic import ValidationError
+
+    from app.schemas import JobSkillExtraction
+
+    with pytest.raises(ValidationError):
+        JobSkillExtraction.model_validate({"skills": [{"name": None}]})
+
+    parsed = JobSkillExtraction.model_validate(
+        {"skills": [{"name": "Python", "category": None}]}
+    )
+    assert parsed.skills[0].category == "通用"
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -4016,12 +4087,14 @@ async def update_skills(
         importance = _form_value(form, "skill_importance", index, "nice")
         if importance not in {"must", "nice"}:
             importance = "nice"
+        category = _form_value(
+            form, "skill_category", index, "通用"
+        ).strip() or "通用"
         db.add(
             JobSkill(
                 job_id=job.id,
                 name=name,
-                category=_form_value(form, "skill_category", index, "通用")
-                or "通用",
+                category=category,
                 importance=importance,
                 required_level=level,
                 sort_order=index,
@@ -4053,7 +4126,8 @@ Modify the header block in `app/templates/jobs/detail.html`:
   </div>
   {% if can_edit %}
   <div class="d-flex gap-2 flex-wrap">
-    <form method="post" action="/jobs/{{ job.id }}/extract-skills">
+    <form method="post" action="/jobs/{{ job.id }}/extract-skills"
+          onsubmit="return confirm('AI 分析会替换当前技能，确定继续？')">
       <button class="btn btn-outline-primary" type="submit">AI 分析技能</button>
     </form>
     <a class="btn btn-outline-primary" href="/jobs/{{ job.id }}/skills">编辑技能</a>
@@ -4160,6 +4234,9 @@ Expected:
 tests/test_job_skill_routes.py::test_extract_job_skills_route PASSED
 tests/test_job_skill_routes.py::test_update_skills_replaces_rows PASSED
 tests/test_job_skill_routes.py::test_non_editor_cannot_extract_skills PASSED
+tests/test_job_skill_routes.py::test_extract_llm_error_preserves_existing_skills PASSED
+tests/test_job_skill_routes.py::test_update_skills_normalizes_blank_category PASSED
+tests/test_job_skill_routes.py::test_schema_none_name_rejected_and_none_category_defaults PASSED
 ```
 
 - [ ] **Step 6: Commit**

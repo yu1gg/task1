@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}面试反馈报告{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/css/interview.css">
+<h1 class="page-title">面试反馈报告</h1><p class="text-muted">AI 反馈用于练习参考，请结合实际岗位要求判断。沟通分仅评价回答转写的组织与清晰度，不分析声纹、情绪或口音。</p>
+<section class="card mb-4"><div class="card-body"><h2 class="h5">综合得分：{{ report.total_score }}</h2><div class="row g-3">
+{% for key, label in [('technical', '专业能力'), ('logic', '逻辑表达'), ('communication', '沟通能力'), ('job_fit', '岗位匹配')] %}<div class="col-6 col-md-3"><span class="text-muted">{{ label }}</span><div class="fs-4">{{ report.scores.get(key, '—') }}</div></div>{% endfor %}
+</div></div></section>
+<div class="row g-3 mb-4">{% for key, label in [('strengths', '优势'), ('weaknesses', '待提升'), ('suggestions', '练习建议')] %}<section class="col-md-4"><div class="card h-100"><div class="card-body"><h2 class="h5">{{ label }}</h2><ul>{% for text in report.get(key, []) %}<li class="interview-text">{{ text }}</li>{% else %}<li>暂无</li>{% endfor %}</ul></div></div></section>{% endfor %}</div>
+<h2 class="h5">逐题回顾</h2>{% for turn in turns %}<section class="card mb-3"><div class="card-body"><h3 class="h6">第 {{ turn.seq }} 题</h3><p class="interview-text">{{ turn.question }}</p><h4 class="h6">回答转写</h4><p class="interview-text">{{ turn.answer_transcript or '暂无转写' }}</p><h4 class="h6">反馈</h4><p class="interview-text">{{ turn.ai_feedback or '暂无反馈' }}</p>{% if turn.answer_audio_path %}<audio controls preload="none" class="w-100" src="/interviews/{{ interview.id }}/turns/{{ turn.id }}/answer-audio"></audio>{% endif %}</div></section>{% endfor %}
+<a href="/interviews" class="btn btn-primary">返回模拟面试</a>
+{% endblock %}

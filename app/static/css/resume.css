@@ -1,0 +1,17 @@
+.resume-paper { box-sizing:border-box; width:210mm; min-height:297mm; padding:15mm; margin:16px auto; background:white; color:#111; font:10.5pt/1.25 SimSun,"宋体",serif; overflow-wrap:anywhere; }
+.resume-paper h1 { font: bold 20pt/1.2 SimHei,"黑体",sans-serif; margin:0 0 5pt; }
+.resume-header { text-align:center; margin-bottom:10pt; }
+.resume-paper h2 { font:bold 12pt/1.25 SimHei,"黑体",sans-serif; margin:9pt 0 4pt; border-bottom:1px solid #777; padding-bottom:2pt; break-after:avoid; }
+.resume-paper p { margin:0 0 4pt; white-space:pre-wrap; }
+.resume-paper ul { padding-left:16pt; margin:0 0 4pt; }
+.resume-paper li { margin-bottom:2pt; white-space:pre-wrap; }
+.resume-entry { break-inside:avoid; margin-bottom:5pt; }
+.resume-entry span { float:right; }
+.resume-preview { overflow:auto; background:#e9edf1; border-radius:8px; }
+.resume-print { margin:0; background:#e9edf1; }
+.print-toolbar { max-width:760px; margin:16px auto; font:14px/1.5 sans-serif; padding:12px; }
+.resume-editor-grid { display:grid; grid-template-columns:minmax(280px, 1fr) minmax(0, 1.3fr); gap:20px; }
+.resume-editor-grid > * { min-width:0; }
+@media(max-width:1000px) { .resume-editor-grid { grid-template-columns:minmax(0,1fr); } }
+@page { size:A4; margin:15mm; }
+@media print { .print-toolbar { display:none; } .resume-print { background:white; } .resume-paper { width:auto; min-height:0; padding:0; margin:0; } }

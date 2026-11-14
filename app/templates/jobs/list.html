@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}岗位{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="page-title mb-0">岗位</h1>
+  {% if user %}
+  <a class="btn btn-primary" href="/jobs/new">发布岗位</a>
+  {% endif %}
+</div>
+
+{% if jobs %}
+<div class="row g-3">
+  {% for job in jobs %}
+  <div class="col-md-6">
+    <a class="text-decoration-none text-reset" href="/jobs/{{ job.id }}">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h5 class="card-title mb-1">{{ job.title }}</h5>
+              <div class="form-hint">{{ job.company.name }}{% if job.location %} · {{ job.location }}{% endif %}</div>
+            </div>
+            {% if job.deadline %}<span class="badge text-bg-light">截止 {{ job.deadline }}</span>{% endif %}
+          </div>
+          <p class="card-text text-muted mt-3 mb-2">{{ job.description[:90] }}{% if job.description|length > 90 %}…{% endif %}</p>
+          <div class="form-hint">
+            招聘 {{ job.headcount }} 人
+            {% if job.skills %} · {{ job.skills|length }} 项技能要求{% else %} · 技能待分析{% endif %}
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card"><div class="card-body text-muted">还没有岗位。登录后点击“发布岗位”开始。</div></div>
+{% endif %}
+{% endblock %}

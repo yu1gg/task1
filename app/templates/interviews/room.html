@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}面试进行中{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/css/interview.css">
+<div id="interview-room" data-interview-id="{{ interview.id }}">
+<div class="d-flex justify-content-between align-items-center gap-2 mb-3"><h1 class="page-title mb-0">{{ 'HR' if interview.round == 'hr' else '技术' }}面试</h1><a href="/interviews" class="btn btn-outline-secondary">返回面试列表</a></div>
+<p class="text-muted">可离开后继续作答。每题最长录音 90 秒，音频不超过 20 MB。语音与转写会交由第三方服务处理，仅录音，不使用摄像头。</p>
+<div id="room-status" role="status" aria-live="polite" class="alert alert-info">正在恢复面试进度…</div>
+<div id="room-error" role="alert" class="alert alert-danger" hidden></div>
+<button id="retry-session" class="btn btn-outline-primary mb-3" hidden>重试准备 / 生成报告</button>
+<a id="report-link" class="btn btn-success mb-3" hidden>查看面试报告</a>
+<section id="question-panel" class="card mb-4" hidden><div class="card-body">
+<h2 id="question-heading" class="h5"></h2><p id="question-text" class="interview-text"></p>
+<div class="d-flex gap-2 flex-wrap mb-3"><button id="play-question" class="btn btn-outline-primary">播放题目</button><button id="pause-question" class="btn btn-outline-secondary">暂停</button><button id="replay-question" class="btn btn-outline-secondary">重播</button></div>
+<div id="answer-controls"><h3 class="h6">语音作答</h3>
+<p id="record-hint" class="small text-muted">点击开始录音后，请允许麦克风权限；也可上传音频。切换到后台会自动停止录音，返回后可试听并提交。</p>
+<div class="d-flex gap-2 flex-wrap mb-3"><button id="start-record" class="btn btn-primary">开始录音</button><button id="stop-record" class="btn btn-danger" disabled>停止录音</button><span id="record-time" role="timer" class="align-self-center"></span></div>
+<label for="answer-file" class="form-label">或上传音频</label><input id="answer-file" type="file" accept="audio/*,.webm,.mp4,.ogg,.wav,.mp3,.m4a" class="form-control mb-3">
+<div id="preview-panel" hidden><p id="file-label" class="small"></p><audio id="answer-preview" controls preload="metadata" class="w-100 mb-2"></audio><div class="d-flex gap-2 flex-wrap"><button id="discard-answer" class="btn btn-outline-secondary">清除 / 重录</button><button id="submit-answer" class="btn btn-success">提交回答</button></div></div>
+</div><button id="retry-turn" class="btn btn-outline-primary mt-3" hidden>重试语音处理 / 评估</button>
+</div></section>
+<section><h2 class="h5">作答记录</h2><div id="turn-history" class="d-grid gap-3"></div></section>
+</div><script src="/static/js/interview.js" defer></script>
+{% endblock %}

@@ -1,7 +1,7 @@
 def test_healthz(client):
     response = client.get("/healthz")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    assert response.json() == {"status": "ok", "db": "ok"}
 
 
 def test_home_page(client):

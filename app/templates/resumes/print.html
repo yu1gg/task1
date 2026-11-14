@@ -1,0 +1,6 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{{ resume.title }}</title><link rel="stylesheet" href="/static/css/resume.css"></head>
+<body class="resume-print">
+<div class="print-toolbar"><a href="/resumes/{{ resume.id }}/edit">返回编辑</a> <button type="button" onclick="window.print()">打印／保存 PDF</button><p>正文 {{ text_length }} 字。使用 A4、100% 比例、关闭页眉页脚，页边距选择默认（模板 15mm）。目标一页，第二页正文不得超过半页；超限请返回精简。</p><p id="page-warning" role="status"></p></div>
+<article class="resume-paper" id="resume-paper">{% include "resumes/body.html" %}</article>
+<script>document.fonts.ready.then(function(){const p=document.getElementById('resume-paper'); if(p.scrollHeight>1515) document.getElementById('page-warning').textContent='排版可能超过 1.5 页，请检查打印预览并精简内容。';});</script>
+</body></html>

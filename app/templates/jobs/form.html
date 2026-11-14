@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% set is_edit = job is not none %}
+{% block title %}{{ "编辑岗位" if is_edit else "发布岗位" }}{% endblock %}
+{% block content %}
+<h1 class="page-title">{{ "编辑岗位" if is_edit else "发布岗位" }}</h1>
+<div class="card">
+  <div class="card-body">
+    <form method="post" action="{{ '/jobs/' ~ job.id ~ '/edit' if is_edit else '/jobs/new' }}">
+      <h2 class="h6 text-muted mb-3">企业信息</h2>
+      <div class="row g-3 mb-4">
+        <div class="col-md-6">
+          <label class="form-label" for="company_name">企业名称</label>
+          <input class="form-control" id="company_name" name="company_name" required value="{{ job.company.name if is_edit else '' }}">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="industry">行业</label>
+          <input class="form-control" id="industry" name="industry" value="{{ (job.company.industry or '') if is_edit else '' }}">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label" for="size">规模</label>
+          <input class="form-control" id="size" name="size" value="{{ (job.company.size or '') if is_edit else '' }}" placeholder="100-499人">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label" for="location">地点</label>
+          <input class="form-control" id="location" name="location" value="{{ (job.location or '') if is_edit else '' }}" placeholder="杭州">
+        </div>
+      </div>
+
+      <h2 class="h6 text-muted mb-3">岗位信息</h2>
+      <div class="row g-3">
+        <div class="col-md-8">
+          <label class="form-label" for="title">岗位名称</label>
+          <input class="form-control" id="title" name="title" required value="{{ job.title if is_edit else '' }}">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label" for="salary_range">薪资范围</label>
+          <input class="form-control" id="salary_range" name="salary_range" value="{{ (job.salary_range or '') if is_edit else '' }}" placeholder="150-200/天">
+        </div>
+        <div class="col-12">
+          <label class="form-label" for="description">岗位描述</label>
+          <textarea class="form-control" id="description" name="description" rows="4">{{ job.description if is_edit else '' }}</textarea>
+        </div>
+        <div class="col-12">
+          <label class="form-label" for="requirements">岗位要求</label>
+          <textarea class="form-control" id="requirements" name="requirements" rows="4">{{ job.requirements if is_edit else '' }}</textarea>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label" for="headcount">招聘人数</label>
+          <input class="form-control" id="headcount" name="headcount" type="number" min="1" value="{{ job.headcount if is_edit else 1 }}">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label" for="deadline">截止日期</label>
+          <input class="form-control" id="deadline" name="deadline" type="date" value="{{ (job.deadline or '') if is_edit else '' }}">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label" for="expected_start_date">期望到岗</label>
+          <input class="form-control" id="expected_start_date" name="expected_start_date" type="date" value="{{ (job.expected_start_date or '') if is_edit else '' }}">
+        </div>
+      </div>
+
+      <button class="btn btn-primary mt-4" type="submit">{{ "保存修改" if is_edit else "发布岗位" }}</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

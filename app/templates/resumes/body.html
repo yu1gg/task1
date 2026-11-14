@@ -1,0 +1,10 @@
+<header class="resume-header"><h1>{{ content.name }}</h1>
+<p>{% if content.phone %}{{ content.phone }}{% endif %}{% if content.phone and content.email %} · {% endif %}{{ content.email or '' }}</p>
+{% if content.target_job %}<p>求职意向：{{ content.target_job }}</p>{% endif %}</header>
+{% if content.summary %}<section><h2>个人简介</h2><p>{{ content.summary }}</p></section>{% endif %}
+{% if content.education %}<section><h2>教育经历</h2>{% for e in content.education %}<div class="resume-entry"><p><strong>{{ e.school }}</strong> · {{ e.major }} · {{ e.degree }} <span>{{ e.period }}</span></p></div>{% endfor %}</section>{% endif %}
+{% if content.skills %}<section><h2>专业技能</h2><ul>{% for s in content.skills %}<li><strong>{{ s.name }}</strong>{% if s.evidence %}：{{ s.evidence }}{% endif %}</li>{% endfor %}</ul></section>{% endif %}
+{% for key, label in [('projects','项目经历'),('internships','实习经历')] %}
+{% if content[key] %}<section><h2>{{ label }}</h2>{% for e in content[key] %}<div class="resume-entry"><p><strong>{{ e.name if key == 'projects' else e.company }}</strong> · {{ e.role }} <span>{{ e.period }}</span></p><ul>{% for b in e.bullets %}<li>{{ b }}</li>{% endfor %}</ul></div>{% endfor %}</section>{% endif %}
+{% endfor %}
+{% if content.awards %}<section><h2>获奖情况</h2><ul>{% for a in content.awards %}<li>{{ a }}</li>{% endfor %}</ul></section>{% endif %}

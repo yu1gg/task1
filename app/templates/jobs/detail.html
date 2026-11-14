@@ -7,7 +7,13 @@
     <div class="text-muted">{{ job.company.name }}{% if job.location %} · {{ job.location }}{% endif %}</div>
   </div>
   {% if can_edit %}
-  <a class="btn btn-outline-primary" href="/jobs/{{ job.id }}/edit">编辑岗位</a>
+  <div class="d-flex gap-2 flex-wrap">
+    <form method="post" action="/jobs/{{ job.id }}/extract-skills">
+      <button class="btn btn-outline-primary" type="submit">AI 分析技能</button>
+    </form>
+    <a class="btn btn-outline-primary" href="/jobs/{{ job.id }}/skills">编辑技能</a>
+    <a class="btn btn-outline-primary" href="/jobs/{{ job.id }}/edit">编辑岗位</a>
+  </div>
   {% endif %}
 </div>
 

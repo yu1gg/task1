@@ -4,6 +4,10 @@ __pycache__/
 .env
 data/
 test_app.db
+test_app.db-shm
+test_app.db-wal
+*.db-shm
+*.db-wal
 .pytest_cache/
 *.mp4
 *.wav

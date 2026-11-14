@@ -89,3 +89,19 @@ def test_logout_clears_session(client):
     response = client.get("/dashboard", follow_redirects=False)
     assert response.status_code == 303
     assert response.headers["location"] == "/login"
+
+
+def test_verify_password_roundtrip():
+    from app.auth import hash_password, verify_password
+
+    password_hash = hash_password("pass123")
+    assert verify_password("pass123", password_hash) is True
+    assert verify_password("wrong-password", password_hash) is False
+
+
+def test_verify_password_returns_false_for_malformed_hash():
+    from app.auth import verify_password
+
+    assert verify_password("pass123", "not-a-hash") is False
+    assert verify_password("pass123", "") is False
+    assert verify_password("pass123", "$2b$12$short") is False

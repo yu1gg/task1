@@ -1,3 +1,5 @@
+import re
+
 import bcrypt
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
@@ -5,17 +7,21 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import User
 
+_BCRYPT_PATTERN = re.compile(r"^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$")
+
 
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(password: str, password_hash: str) -> bool:
+    if not password_hash or not _BCRYPT_PATTERN.match(password_hash):
+        return False
     try:
         return bcrypt.checkpw(
             password.encode("utf-8"), password_hash.encode("utf-8")
         )
-    except ValueError:
+    except (ValueError, TypeError):
         return False
 
 

@@ -3,10 +3,10 @@
 - 更新日期：2026-11-14
 - 当前阶段：P1 已完成，P2–P5 待开发
 - 本地分支：`p1-foundation`
-- 最新提交：`3d2b2cf`
+- 最新功能提交：`3d2b2cf`（本交接文档为后续 docs 提交）
 - 远端仓库：https://github.com/yu1gg/task1.git
 - 远端 `main`：`f6b6294`（首个脚手架基线）
-- 远端 `p1-foundation`：`3d2b2cf`（领先 `main` 40 个提交）
+- 远端 `p1-foundation`：包含完整 P1，领先 `main` 40+ 个提交（以 `git log` 为准）
 - 测试状态：89 passed，1 个上游 Starlette 弃用警告
 - PR：尚未在 GitHub 上创建；一键创建链接：
   https://github.com/yu1gg/task1/compare/main...p1-foundation?expand=1

@@ -21,8 +21,4 @@ pytest
 
 ## 远程仓库
 
-```bash
-git remote add origin https://github.com/yu1gg/task1.git
-```
-
-首次推送前先确认本地提交内容。
+远程仓库已配置为 <https://github.com/yu1gg/task1.git>。首次推送前先确认本地提交内容。

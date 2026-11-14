@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -23,7 +24,11 @@ def create_app() -> FastAPI:
         https_only=False,
         max_age=7 * 24 * 3600,
     )
-    app.mount("/static", StaticFiles(directory="app/static"), name="static")
+    app.mount(
+        "/static",
+        StaticFiles(directory=str(Path(__file__).resolve().parent / "static")),
+        name="static",
+    )
     app.include_router(health.router)
     app.include_router(home.router)
     return app

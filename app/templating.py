@@ -1,7 +1,9 @@
+from pathlib import Path
+
 from fastapi import Request
 from fastapi.templating import Jinja2Templates
 
-templates = Jinja2Templates(directory="app/templates")
+templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "templates"))
 
 ROLE_LABELS = {"student": "学生", "teacher": "教师", "alumni": "校友"}
 
@@ -19,11 +21,10 @@ def render(
     status_code: int = 200,
 ):
     ctx = {
-        "request": request,
         "user": None,
         "role_label": "",
         "flashes": request.session.pop("_flashes", []),
     }
     if context:
         ctx.update(context)
-    return templates.TemplateResponse(template_name, ctx, status_code=status_code)
+    return templates.TemplateResponse(request, template_name, ctx, status_code=status_code)

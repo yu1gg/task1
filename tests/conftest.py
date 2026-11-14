@@ -8,7 +8,16 @@ os.environ["DEEPSEEK_API_KEY"] = "test-key"
 import pytest
 from fastapi.testclient import TestClient
 
+from app import models  # noqa: F401
+from app.db import Base, engine
 from app.main import app
+
+
+@pytest.fixture(autouse=True)
+def clean_database():
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
+    yield
 
 
 @pytest.fixture()

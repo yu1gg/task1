@@ -1139,7 +1139,7 @@ Create `tests/test_auth.py`:
 from sqlalchemy import select
 
 from app.db import SessionLocal
-from app.models import User
+from app.models import UsageEvent, User
 from tests.helpers import login, make_student, make_teacher, register
 
 
@@ -1243,6 +1243,88 @@ def test_verify_password_returns_false_for_malformed_hash():
     assert verify_password("pass123", "not-a-hash") is False
     assert verify_password("pass123", "") is False
     assert verify_password("pass123", "$2b$12$short") is False
+
+
+def test_usage_events_for_register_login_logout(client):
+    make_student(client)
+    client.post("/logout", follow_redirects=False)
+    login(client)
+    client.post("/logout", follow_redirects=False)
+
+    with SessionLocal() as db:
+        user = db.scalar(select(User).where(User.username == "stu1"))
+        events = db.scalars(
+            select(UsageEvent).where(UsageEvent.user_id == user.id)
+        ).all()
+        types = [event.event_type for event in events]
+        assert "register" in types
+        assert "login" in types
+        assert types.count("logout") >= 2
+
+
+def test_login_failure_is_logged(client):
+    make_student(client)
+    client.post("/logout", follow_redirects=False)
+
+    response = login(client, password="wrong-password")
+    assert response.status_code == 303
+    response = client.get("/login")
+    assert "用户名或密码错误" in response.text
+
+    with SessionLocal() as db:
+        events = db.scalars(
+            select(UsageEvent).where(UsageEvent.event_type == "login_failed")
+        ).all()
+        assert len(events) == 1
+        assert events[0].payload_json["username"] == "stu1"
+
+
+def test_register_validation_errors(client):
+    response = register(client, username="ab")
+    assert response.status_code == 303
+    response = client.get("/register")
+    assert "用户名至少 3 位" in response.text
+
+    response = register(client, username="stu2", password="123")
+    assert response.status_code == 303
+    response = client.get("/register")
+    assert "密码至少 6 位" in response.text
+
+    response = register(client, username="stu3", real_name="")
+    assert response.status_code == 303
+    response = client.get("/register")
+    assert "请填写真实姓名" in response.text
+
+
+def test_teacher_can_register_with_non_ascii_invite_code(client, monkeypatch):
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "teacher_invite_code", "教师邀请码2026")
+
+    response = register(
+        client,
+        username="teacher_cn",
+        real_name="中文老师",
+        role="teacher",
+        teacher_code="教师邀请码2026",
+        major="",
+        grade="",
+    )
+    assert response.status_code == 303
+
+    response = register(
+        client,
+        username="teacher_cn_bad",
+        real_name="错误老师",
+        role="teacher",
+        teacher_code="错误邀请码",
+        major="",
+        grade="",
+    )
+    assert response.status_code == 303
+
+    response = client.get("/register")
+    assert "教师邀请码错误" in response.text
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -1405,6 +1487,7 @@ def render(
 Create `app/routers/auth.py`:
 
 ```python
+import hmac
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Form, Request
@@ -1469,7 +1552,10 @@ def register(
         if not settings.teacher_invite_code:
             flash(request, "教师注册未开启，请联系管理员", "danger")
             return RedirectResponse("/register", status_code=303)
-        if teacher_code.strip() != settings.teacher_invite_code:
+        if not hmac.compare_digest(
+            teacher_code.strip().encode("utf-8"),
+            settings.teacher_invite_code.encode("utf-8"),
+        ):
             flash(request, "教师邀请码错误", "danger")
             return RedirectResponse("/register", status_code=303)
 
@@ -1508,6 +1594,14 @@ def login(
 ):
     user = db.scalar(select(User).where(User.username == username.strip()))
     if user is None or not verify_password(password, user.password_hash):
+        log_event(
+            db,
+            "login_failed",
+            user_id=user.id if user is not None else None,
+            request=request,
+            payload={"username": username.strip()},
+        )
+        db.commit()
         flash(request, "用户名或密码错误", "danger")
         return RedirectResponse("/login", status_code=303)
 
@@ -1683,6 +1777,10 @@ tests/test_auth.py::test_password_is_hashed_and_not_stored_plaintext PASSED
 tests/test_auth.py::test_logout_clears_session PASSED
 tests/test_auth.py::test_verify_password_roundtrip PASSED
 tests/test_auth.py::test_verify_password_returns_false_for_malformed_hash PASSED
+tests/test_auth.py::test_usage_events_for_register_login_logout PASSED
+tests/test_auth.py::test_login_failure_is_logged PASSED
+tests/test_auth.py::test_register_validation_errors PASSED
+tests/test_auth.py::test_teacher_can_register_with_non_ascii_invite_code PASSED
 ```
 
 - [ ] **Step 9: Commit**

@@ -7,7 +7,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
 from app.db import init_db
-from app.routers import auth, dashboard, health, home, jobs
+from app.routers import auth, dashboard, health, home, jobs, profile
 
 
 @asynccontextmanager
@@ -36,6 +36,7 @@ def create_app() -> FastAPI:
     app.include_router(auth.router)
     app.include_router(dashboard.router)
     app.include_router(jobs.router)
+    app.include_router(profile.router)
     return app
 
 

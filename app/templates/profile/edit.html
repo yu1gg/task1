@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}我的资料{% endblock %}
+{% block content %}
+<h1 class="page-title">我的资料</h1>
+<div class="card">
+  <div class="card-body">
+    <form method="post" action="/profile">
+      <div class="mb-4">
+        <label class="form-label" for="summary">个人简介</label>
+        <textarea class="form-control" id="summary" name="summary" rows="3" placeholder="一句话介绍你的方向、优势和目标。">{{ profile.summary }}</textarea>
+      </div>
+
+      <div class="row g-3 mb-4">
+        <div class="col-md-4">
+          <label class="form-label" for="availability_from">可到岗时间</label>
+          <input class="form-control" id="availability_from" name="availability_from" type="date" value="{{ profile.availability_from or '' }}">
+        </div>
+        <div class="col-md-8">
+          <label class="form-label" for="availability_note">时间说明</label>
+          <input class="form-control" id="availability_note" name="availability_note" value="{{ profile.availability_note or '' }}" placeholder="如：每周可实习 4 天，寒暑假全职">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="target_job_id">目标岗位</label>
+          <select class="form-select" id="target_job_id" name="target_job_id">
+            <option value="">暂不选择</option>
+            {% for job in jobs %}
+            <option value="{{ job.id }}" {% if profile.target_job_id == job.id %}selected{% endif %}>{{ job.title }} - {{ job.company.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="mb-4">
+        <label class="form-label" for="education_text">教育经历</label>
+        <textarea class="form-control" id="education_text" name="education_text" rows="3" placeholder="学校 | 专业 | 学历 | 时间">{{ education_text }}</textarea>
+        <div class="form-hint">每行一条，用 | 分隔。示例：某某大学 | 人工智能 | 本科 | 2023-2027</div>
+      </div>
+
+      <div class="mb-4">
+        <label class="form-label" for="projects_text">项目经历</label>
+        <textarea class="form-control" id="projects_text" name="projects_text" rows="6" placeholder="项目名 | 角色 | 时间&#10;描述...">{{ projects_text }}</textarea>
+        <div class="form-hint">每个项目之间空一行；第一行写“项目名 | 角色 | 时间”，后面写描述和技术栈。</div>
+      </div>
+
+      <div class="mb-4">
+        <label class="form-label" for="internships_text">实习经历</label>
+        <textarea class="form-control" id="internships_text" name="internships_text" rows="4" placeholder="公司 | 角色 | 时间&#10;描述...">{{ internships_text }}</textarea>
+        <div class="form-hint">格式同项目经历，每个实习之间空一行。</div>
+      </div>
+
+      <div class="mb-4">
+        <label class="form-label" for="awards_text">奖项荣誉</label>
+        <textarea class="form-control" id="awards_text" name="awards_text" rows="3" placeholder="每行一个奖项">{{ awards_text }}</textarea>
+      </div>
+
+      <div class="mb-4">
+        <label class="form-label" for="skills_text">技能自评</label>
+        <textarea class="form-control" id="skills_text" name="skills_text" rows="6" placeholder="Python | 5 | 课程项目&#10;SQL | 3 | 课程设计">{{ skills_text }}</textarea>
+        <div class="form-hint">每行一项：技能名 | 等级(1-5) | 证据。等级 1=了解，3=熟练，5=精通。</div>
+      </div>
+
+      <button class="btn btn-primary" type="submit">保存资料</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

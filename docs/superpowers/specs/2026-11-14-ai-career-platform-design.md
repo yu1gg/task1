@@ -318,6 +318,8 @@ UI 要求：中文界面；主色不超过两种；移动端单列布局；按�
 ### 12.3 备份与运维
 
 - 每日 cron：SQLite `.backup` + 上传目录打包，保留 7 天。
+- 表结构变更：MVP 使用 `create_all`，首次部署后不会自动改表；每次改表前备份数据库，并按 `ALTER TABLE` 运行手册执行（或在 P5 前引入 Alembic）。
+- SQLite 连接必须启用 `foreign_keys=ON`、`journal_mode=WAL`、`busy_timeout=5000`。
 - 日志：systemd journal + 应用日志。
 - 部署后自测：注册、登录、建岗位、生成简历、上传视频、完成面试、匹配导出。
 - 上线前用校园 Wi-Fi、手机流量各测一遍。

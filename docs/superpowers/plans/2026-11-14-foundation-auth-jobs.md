@@ -660,6 +660,20 @@ def test_create_user_and_profile():
         assert loaded is not None
         assert loaded.profile is not None
         assert loaded.real_name == "测试学生"
+
+
+def test_sqlite_pragmas():
+    from sqlalchemy import text
+
+    from app.db import engine
+
+    with engine.connect() as connection:
+        assert connection.execute(text("PRAGMA foreign_keys")).scalar() == 1
+        assert connection.execute(text("PRAGMA busy_timeout")).scalar() == 5000
+        assert (
+            connection.execute(text("PRAGMA journal_mode")).scalar().lower()
+            == "wal"
+        )
 ```
 
 Update `tests/conftest.py`:
@@ -732,6 +746,7 @@ if settings.database_url.startswith("sqlite"):
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA busy_timeout=5000")
         cursor.close()
 
 
@@ -1023,6 +1038,7 @@ Expected:
 tests/test_health.py::test_healthz PASSED
 tests/test_health.py::test_home_page PASSED
 tests/test_db.py::test_create_user_and_profile PASSED
+tests/test_db.py::test_sqlite_pragmas PASSED
 ```
 
 - [ ] **Step 7: Commit**

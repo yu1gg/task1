@@ -184,3 +184,40 @@ def test_schema_none_name_rejected_and_none_category_defaults():
         {"skills": [{"name": "Python", "category": None}]}
     )
     assert parsed.skills[0].category == "通用"
+
+
+def test_empty_extraction_preserves_skills(client, fake_llm):
+    make_teacher(client)
+    job_id = create_job(client)
+    client.post(f"/jobs/{job_id}/extract-skills", follow_redirects=False)
+    assert skill_count(job_id) == 2
+
+    app.dependency_overrides[get_llm_client] = lambda: FakeLLM({"skills": []})
+    try:
+        response = client.post(
+            f"/jobs/{job_id}/extract-skills", follow_redirects=True
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert "未提取到技能" in response.text
+    assert skill_count(job_id) == 2
+
+
+def test_update_skills_caps_rows(client):
+    make_teacher(client)
+    job_id = create_job(client)
+    names = [f"Skill{i}" for i in range(35)]
+
+    response = client.post(
+        f"/jobs/{job_id}/skills",
+        data={
+            "skill_name": names,
+            "skill_category": ["通用"] * 35,
+            "skill_importance": ["nice"] * 35,
+            "skill_level": ["3"] * 35,
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    assert skill_count(job_id) == 30

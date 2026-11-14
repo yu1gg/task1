@@ -142,9 +142,10 @@ def test_student_cannot_overwrite_teacher_company_metadata(client):
     response = client.post(
         f"/jobs/{student_job_id}/edit",
         data={**JOB_DATA, "title": "学生岗位", "industry": "篡改行业"},
-        follow_redirects=False,
+        follow_redirects=True,
     )
-    assert response.status_code == 303
+    assert response.status_code == 200
+    assert "企业信息由创建者维护" in response.text
 
     with SessionLocal() as db:
         company = db.scalar(
@@ -206,3 +207,19 @@ def test_job_usage_events_are_logged(client):
         ).all()
         event_types = {event.event_type for event in events}
         assert event_types == {"job_create", "job_update"}
+
+
+def test_long_job_fields_are_truncated(client):
+    make_teacher(client)
+    response = create_job(
+        client,
+        title="T" * 300,
+        description="D" * 25000,
+    )
+    assert response.status_code == 303
+    job_id = int(response.headers["location"].split("/")[-1])
+
+    with SessionLocal() as db:
+        job = db.get(Job, job_id)
+        assert len(job.title) == 120
+        assert len(job.description) == 20000

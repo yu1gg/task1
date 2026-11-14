@@ -37,6 +37,10 @@ def register(
 ):
     username = username.strip()
     real_name = real_name.strip()
+    username = username[:32]
+    real_name = real_name[:64]
+    major = major.strip()[:64]
+    grade = grade.strip()[:32]
 
     if len(username) < 3:
         flash(request, "用户名至少 3 位", "danger")
@@ -75,8 +79,8 @@ def register(
         password_hash=hash_password(password),
         real_name=real_name,
         role=role,
-        major=major.strip() or None,
-        grade=grade.strip() or None,
+        major=major or None,
+        grade=grade or None,
     )
     db.add(user)
     db.flush()

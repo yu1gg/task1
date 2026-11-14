@@ -76,6 +76,16 @@ def create_job(
 ):
     company_name = company_name.strip()
     title = title.strip()
+    company_name = company_name[:120]
+    title = title[:120]
+    industry = industry.strip()[:80]
+    size = size.strip()[:40]
+    location = location.strip()[:80]
+    description = description.strip()[:20000]
+    requirements = requirements.strip()[:20000]
+    salary_range = salary_range.strip()[:60]
+    deadline = deadline.strip()[:20]
+    expected_start_date = expected_start_date.strip()[:20]
     if not company_name or not title:
         flash(request, "企业和岗位名称不能为空", "danger")
         return RedirectResponse("/jobs/new", status_code=303)
@@ -89,9 +99,9 @@ def create_job(
     if company is None:
         company = Company(
             name=company_name,
-            industry=industry.strip() or None,
-            size=size.strip() or None,
-            location=location.strip() or None,
+            industry=industry or None,
+            size=size or None,
+            location=location or None,
             created_by=user.id,
         )
         db.add(company)
@@ -100,13 +110,13 @@ def create_job(
     job = Job(
         company_id=company.id,
         title=title,
-        description=description.strip(),
-        requirements=requirements.strip(),
-        location=location.strip() or company.location,
-        salary_range=salary_range.strip() or None,
+        description=description,
+        requirements=requirements,
+        location=location or company.location,
+        salary_range=salary_range or None,
         headcount=headcount_value,
-        deadline=deadline.strip() or None,
-        expected_start_date=expected_start_date.strip() or None,
+        deadline=deadline or None,
+        expected_start_date=expected_start_date or None,
         created_by=user.id,
     )
     db.add(job)
@@ -185,8 +195,17 @@ def update_job(
     job = get_job_or_404(db, job_id)
     require_editor(user, job)
 
-    company_name = company_name.strip()
-    if not company_name or not title.strip():
+    company_name = company_name.strip()[:120]
+    title = title.strip()[:120]
+    industry = industry.strip()[:80]
+    size = size.strip()[:40]
+    location = location.strip()[:80]
+    description = description.strip()[:20000]
+    requirements = requirements.strip()[:20000]
+    salary_range = salary_range.strip()[:60]
+    deadline = deadline.strip()[:20]
+    expected_start_date = expected_start_date.strip()[:20]
+    if not company_name or not title:
         flash(request, "企业和岗位名称不能为空", "danger")
         return RedirectResponse(f"/jobs/{job.id}/edit", status_code=303)
 
@@ -194,18 +213,20 @@ def update_job(
     if company is None:
         company = Company(
             name=company_name,
-            industry=industry.strip() or None,
-            size=size.strip() or None,
-            location=location.strip() or None,
+            industry=industry or None,
+            size=size or None,
+            location=location or None,
             created_by=user.id,
         )
         db.add(company)
         db.flush()
     else:
         if can_edit_company(user, company):
-            company.industry = industry.strip() or company.industry
-            company.size = size.strip() or company.size
-            company.location = location.strip() or company.location
+            company.industry = industry or company.industry
+            company.size = size or company.size
+            company.location = location or company.location
+        elif industry or size or location:
+            flash(request, "企业信息由创建者维护，本次仅更新岗位", "warning")
 
     try:
         headcount_value = max(1, int(headcount))
@@ -213,14 +234,14 @@ def update_job(
         headcount_value = 1
 
     job.company_id = company.id
-    job.title = title.strip()
-    job.description = description.strip()
-    job.requirements = requirements.strip()
-    job.location = location.strip() or company.location
-    job.salary_range = salary_range.strip() or None
+    job.title = title
+    job.description = description
+    job.requirements = requirements
+    job.location = location or company.location
+    job.salary_range = salary_range or None
     job.headcount = headcount_value
-    job.deadline = deadline.strip() or None
-    job.expected_start_date = expected_start_date.strip() or None
+    job.deadline = deadline or None
+    job.expected_start_date = expected_start_date or None
 
     log_event(
         db,
@@ -258,6 +279,10 @@ def extract_skills(
     except LLMError as exc:
         flash(request, str(exc), "danger")
         return RedirectResponse(f"/jobs/{job.id}", status_code=303)
+
+    if not result.skills:
+        flash(request, "未提取到技能，已保留原有技能", "warning")
+        return RedirectResponse(f"/jobs/{job.id}/skills", status_code=303)
 
     db.execute(delete(JobSkill).where(JobSkill.job_id == job.id))
     for index, skill in enumerate(result.skills):
@@ -307,7 +332,7 @@ async def update_skills(
     require_editor(user, job)
 
     form = await request.form()
-    names = form.getlist("skill_name")
+    names = form.getlist("skill_name")[:30]
 
     db.execute(delete(JobSkill).where(JobSkill.job_id == job.id))
 

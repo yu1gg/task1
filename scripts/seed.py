@@ -91,7 +91,10 @@ def seed_database(db) -> dict:
         db.flush()
 
     job = db.scalar(
-        select(Job).where(Job.title == "AI 算法实习生")
+        select(Job).where(
+            Job.title == "AI 算法实习生",
+            Job.created_by == teacher.id,
+        )
     )
     if job is None:
         job = Job(

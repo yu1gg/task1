@@ -77,6 +77,8 @@ def test_student_sees_match_and_gaps(client):
     assert "匹配度" in response.text
     assert "待补齐技能" in response.text
     assert "Python" in response.text
+    assert "85%" in response.text
+    assert "4 / 5" in response.text
 
 
 def test_student_dashboard_shows_recommendations(client):
@@ -93,3 +95,55 @@ def test_student_dashboard_shows_recommendations(client):
     assert response.status_code == 200
     assert "推荐岗位" in response.text
     assert "AI 算法实习生" in response.text
+
+
+def test_student_with_empty_skills_gets_zero_and_gaps(client):
+    make_teacher(client)
+    job_id = create_job(client)
+    add_skills(job_id)
+
+    client.post("/logout", follow_redirects=False)
+    make_student(client)
+
+    response = client.get(f"/jobs/{job_id}")
+
+    assert response.status_code == 200
+    assert "0%" in response.text
+    assert "待补齐技能" in response.text
+
+
+def test_job_without_skills_shows_analysis_prompt(client):
+    make_teacher(client)
+    job_id = create_job(client)
+
+    client.post("/logout", follow_redirects=False)
+    make_student(client)
+    client.post("/profile", data=PROFILE_DATA, follow_redirects=False)
+
+    response = client.get(f"/jobs/{job_id}")
+
+    assert "岗位技能尚未分析" in response.text
+
+
+def test_teacher_does_not_see_match_card(client):
+    make_teacher(client)
+    job_id = create_job(client)
+    add_skills(job_id)
+
+    response = client.get(f"/jobs/{job_id}")
+
+    assert "我的匹配情况" not in response.text
+
+
+def test_dashboard_shows_empty_recommendation_state(client):
+    make_teacher(client)
+    create_job(client)  # no skills, so no recommendations
+
+    client.post("/logout", follow_redirects=False)
+    make_student(client)
+    client.post("/profile", data=PROFILE_DATA, follow_redirects=False)
+
+    response = client.get("/dashboard")
+
+    assert "推荐岗位" in response.text
+    assert "先完善技能资料" in response.text

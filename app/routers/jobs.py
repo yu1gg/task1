@@ -136,7 +136,6 @@ def job_detail(
     can_edit = bool(user and can_edit_job(user, job))
 
     match = None
-    profile = None
     if user is not None and user.role == "student":
         profile = db.get(StudentProfile, user.id)
         if profile is not None:
@@ -149,7 +148,6 @@ def job_detail(
             "job": job,
             "can_edit": can_edit,
             "match": match,
-            "profile": profile,
         },
     )
 

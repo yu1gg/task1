@@ -39,7 +39,7 @@
         <div class="d-flex justify-content-between align-items-center">
           <div>
             <div class="fw-semibold">{{ item.job.title }}</div>
-            <div class="form-hint">{{ item.job.company.name }} · 待补齐 {{ item.gap_count }} 项技能</div>
+            <div class="form-hint">{{ item.job.company.name }} · {% if item.gap_count > 0 %}待补齐 {{ item.gap_count }} 项技能{% else %}技能已达标{% endif %}</div>
           </div>
           <span class="badge text-bg-primary">{{ item.score }}%</span>
         </div>

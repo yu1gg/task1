@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}教师工作台{% endblock %}
+{% block content %}
+<h1 class="page-title">教师工作台</h1>
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card h-100"><div class="card-body">
+      <div class="text-muted mb-1">学生人数</div>
+      <div class="display-6 fw-bold">{{ student_count }}</div>
+    </div></div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100"><div class="card-body">
+      <div class="text-muted mb-1">岗位数量</div>
+      <div class="display-6 fw-bold">{{ job_count }}</div>
+    </div></div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100"><div class="card-body">
+      <div class="text-muted mb-1">快捷操作</div>
+      <a class="btn btn-sm btn-primary" href="/jobs/new">发布岗位</a>
+      <a class="btn btn-sm btn-outline-primary" href="/jobs">查看岗位</a>
+    </div></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">最近岗位</div>
+  <div class="card-body p-0">
+    {% if jobs %}
+    <div class="list-group list-group-flush">
+      {% for job in jobs %}
+      <a class="list-group-item list-group-item-action" href="/jobs/{{ job.id }}">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <div class="fw-semibold">{{ job.title }}</div>
+            <div class="form-hint">{{ job.company.name }}{% if job.location %} · {{ job.location }}{% endif %}</div>
+          </div>
+          <span class="text-muted">查看 →</span>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="p-4 text-muted">还没有岗位，点击“发布岗位”开始。</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

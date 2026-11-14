@@ -1,3 +1,4 @@
+import hmac
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Form, Request
@@ -62,7 +63,7 @@ def register(
         if not settings.teacher_invite_code:
             flash(request, "教师注册未开启，请联系管理员", "danger")
             return RedirectResponse("/register", status_code=303)
-        if teacher_code.strip() != settings.teacher_invite_code:
+        if not hmac.compare_digest(teacher_code.strip(), settings.teacher_invite_code):
             flash(request, "教师邀请码错误", "danger")
             return RedirectResponse("/register", status_code=303)
 
@@ -101,6 +102,14 @@ def login(
 ):
     user = db.scalar(select(User).where(User.username == username.strip()))
     if user is None or not verify_password(password, user.password_hash):
+        log_event(
+            db,
+            "login_failed",
+            user_id=user.id if user is not None else None,
+            request=request,
+            payload={"username": username.strip()},
+        )
+        db.commit()
         flash(request, "用户名或密码错误", "danger")
         return RedirectResponse("/login", status_code=303)
 

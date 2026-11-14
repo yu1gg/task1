@@ -1,7 +1,7 @@
 from sqlalchemy import select
 
 from app.db import SessionLocal
-from app.models import User
+from app.models import UsageEvent, User
 from tests.helpers import login, make_student, make_teacher, register
 
 
@@ -105,3 +105,54 @@ def test_verify_password_returns_false_for_malformed_hash():
     assert verify_password("pass123", "not-a-hash") is False
     assert verify_password("pass123", "") is False
     assert verify_password("pass123", "$2b$12$short") is False
+
+
+def test_usage_events_for_register_login_logout(client):
+    make_student(client)
+    client.post("/logout", follow_redirects=False)
+    login(client)
+    client.post("/logout", follow_redirects=False)
+
+    with SessionLocal() as db:
+        user = db.scalar(select(User).where(User.username == "stu1"))
+        events = db.scalars(
+            select(UsageEvent).where(UsageEvent.user_id == user.id)
+        ).all()
+        types = [event.event_type for event in events]
+        assert "register" in types
+        assert "login" in types
+        assert types.count("logout") >= 2
+
+
+def test_login_failure_is_logged(client):
+    make_student(client)
+    client.post("/logout", follow_redirects=False)
+
+    response = login(client, password="wrong-password")
+    assert response.status_code == 303
+    response = client.get("/login")
+    assert "用户名或密码错误" in response.text
+
+    with SessionLocal() as db:
+        events = db.scalars(
+            select(UsageEvent).where(UsageEvent.event_type == "login_failed")
+        ).all()
+        assert len(events) == 1
+        assert events[0].payload_json["username"] == "stu1"
+
+
+def test_register_validation_errors(client):
+    response = register(client, username="ab")
+    assert response.status_code == 303
+    response = client.get("/register")
+    assert "用户名至少 3 位" in response.text
+
+    response = register(client, username="stu2", password="123")
+    assert response.status_code == 303
+    response = client.get("/register")
+    assert "密码至少 6 位" in response.text
+
+    response = register(client, username="stu3", real_name="")
+    assert response.status_code == 303
+    response = client.get("/register")
+    assert "请填写真实姓名" in response.text

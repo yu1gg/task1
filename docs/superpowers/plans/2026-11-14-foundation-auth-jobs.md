@@ -2170,7 +2170,7 @@ Create `tests/test_jobs.py`:
 from sqlalchemy import func, select
 
 from app.db import SessionLocal
-from app.models import Company, Job
+from app.models import Company, Job, UsageEvent
 from tests.helpers import make_student, make_teacher
 
 JOB_DATA = {
@@ -2268,6 +2268,113 @@ def test_job_list_shows_open_jobs(client):
     assert response.status_code == 200
     assert "AI 算法实习生" in response.text
     assert "发布岗位" in response.text
+
+
+def test_student_creator_can_edit_own_job_and_company(client):
+    make_student(client)
+    response = create_job(
+        client,
+        company_name="学生创业公司",
+        industry="教育科技",
+        title="学生自己的岗位",
+    )
+    job_id = int(response.headers["location"].split("/")[-1])
+
+    response = client.post(
+        f"/jobs/{job_id}/edit",
+        data={
+            **JOB_DATA,
+            "company_name": "学生创业公司",
+            "industry": "AI 教育",
+            "title": "学生自己的岗位（更新）",
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+
+    with SessionLocal() as db:
+        job = db.get(Job, job_id)
+        assert job.title == "学生自己的岗位（更新）"
+        assert job.company.industry == "AI 教育"
+
+
+def test_student_cannot_overwrite_teacher_company_metadata(client):
+    make_teacher(client)
+    response = create_job(client, title="老师岗位")
+    teacher_job_id = int(response.headers["location"].split("/")[-1])
+
+    client.post("/logout", follow_redirects=False)
+    make_student(client)
+    response = create_job(client, title="学生岗位")
+    student_job_id = int(response.headers["location"].split("/")[-1])
+
+    response = client.post(
+        f"/jobs/{student_job_id}/edit",
+        data={**JOB_DATA, "title": "学生岗位", "industry": "篡改行业"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+
+    with SessionLocal() as db:
+        company = db.scalar(
+            select(Company).where(Company.name == "示例科技有限公司")
+        )
+        assert company.industry == "人工智能"
+        teacher_job = db.get(Job, teacher_job_id)
+        assert teacher_job.company.industry == "人工智能"
+
+
+def test_student_cannot_post_edit_teacher_job(client):
+    make_teacher(client)
+    response = create_job(client)
+    job_id = int(response.headers["location"].split("/")[-1])
+
+    client.post("/logout", follow_redirects=False)
+    make_student(client)
+
+    response = client.post(
+        f"/jobs/{job_id}/edit",
+        data={**JOB_DATA, "title": "越权修改"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 403
+
+
+def test_missing_job_returns_404(client):
+    response = client.get("/jobs/99999")
+    assert response.status_code == 404
+
+
+def test_blank_job_validation_flashes(client):
+    make_teacher(client)
+    response = client.post(
+        "/jobs/new",
+        data={**JOB_DATA, "company_name": "", "title": ""},
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert "企业和岗位名称不能为空" in response.text
+
+
+def test_job_usage_events_are_logged(client):
+    make_teacher(client)
+    response = create_job(client)
+    job_id = int(response.headers["location"].split("/")[-1])
+
+    client.post(
+        f"/jobs/{job_id}/edit",
+        data={**JOB_DATA, "title": "更新后的岗位"},
+        follow_redirects=False,
+    )
+
+    with SessionLocal() as db:
+        events = db.scalars(
+            select(UsageEvent).where(
+                UsageEvent.event_type.in_(["job_create", "job_update"])
+            )
+        ).all()
+        event_types = {event.event_type for event in events}
+        assert event_types == {"job_create", "job_update"}
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -2315,10 +2422,13 @@ def require_editor(user: User, job: Job) -> None:
         raise HTTPException(status_code=403, detail="无权编辑该岗位")
 
 
+def can_edit_company(user: User, company: Company) -> bool:
+    return user.role == "teacher" or company.created_by == user.id
+
+
 @router.get("")
 def list_jobs(
     request: Request,
-    user: User | None = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     jobs = db.scalars(
@@ -2472,9 +2582,10 @@ def update_job(
         db.add(company)
         db.flush()
     else:
-        company.industry = industry.strip() or company.industry
-        company.size = size.strip() or company.size
-        company.location = location.strip() or company.location
+        if can_edit_company(user, company):
+            company.industry = industry.strip() or company.industry
+            company.size = size.strip() or company.size
+            company.location = location.strip() or company.location
 
     try:
         headcount_value = max(1, int(headcount))
@@ -2650,19 +2761,21 @@ Create `app/templates/jobs/detail.html`:
       <div class="card-header">技能要求</div>
       <div class="card-body p-0">
         {% if job.skills %}
-        <table class="table mb-0">
-          <thead><tr><th>技能</th><th>类别</th><th>重要性</th><th>要求等级</th></tr></thead>
-          <tbody>
-          {% for skill in job.skills %}
-            <tr>
-              <td>{{ skill.name }}</td>
-              <td>{{ skill.category }}</td>
-              <td>{% if skill.importance == 'must' %}<span class="badge text-bg-danger">必须</span>{% else %}<span class="badge text-bg-secondary">加分</span>{% endif %}</td>
-              <td>{{ skill.required_level }} / 5</td>
-            </tr>
-          {% endfor %}
-          </tbody>
-        </table>
+        <div class="table-responsive">
+          <table class="table mb-0">
+            <thead><tr><th>技能</th><th>类别</th><th>重要性</th><th>要求等级</th></tr></thead>
+            <tbody>
+            {% for skill in job.skills %}
+              <tr>
+                <td>{{ skill.name }}</td>
+                <td>{{ skill.category }}</td>
+                <td>{% if skill.importance == 'must' %}<span class="badge text-bg-danger">必须</span>{% else %}<span class="badge text-bg-secondary">加分</span>{% endif %}</td>
+                <td>{{ skill.required_level }} / 5</td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
         {% else %}
         <div class="p-4 text-muted">岗位技能尚未分析。</div>
         {% endif %}
@@ -2719,6 +2832,12 @@ tests/test_jobs.py::test_creator_can_open_edit_page PASSED
 tests/test_jobs.py::test_edit_job_updates_fields_and_company PASSED
 tests/test_jobs.py::test_non_creator_cannot_edit_job PASSED
 tests/test_jobs.py::test_job_list_shows_open_jobs PASSED
+tests/test_jobs.py::test_student_creator_can_edit_own_job_and_company PASSED
+tests/test_jobs.py::test_student_cannot_overwrite_teacher_company_metadata PASSED
+tests/test_jobs.py::test_student_cannot_post_edit_teacher_job PASSED
+tests/test_jobs.py::test_missing_job_returns_404 PASSED
+tests/test_jobs.py::test_blank_job_validation_flashes PASSED
+tests/test_jobs.py::test_job_usage_events_are_logged PASSED
 ```
 
 - [ ] **Step 7: Commit**

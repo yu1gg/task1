@@ -33,26 +33,34 @@ def format_education(items: list[dict]) -> str:
 
 
 def parse_blocks(text: str, fields: list[str]) -> list[dict]:
-    blocks: list[list[str]] = []
-    current: list[str] = []
+    def is_header(line: str) -> bool:
+        if not line.strip():
+            return False
+        parts = [part.strip() for part in line.split("|")]
+        return len(parts) >= len(fields) and bool(parts[0])
+
+    blocks: list[tuple[str, list[str]]] = []
+    current_header: str | None = None
+    current_description: list[str] = []
 
     for line in (text or "").splitlines():
-        if line.strip() == "":
-            if current:
-                blocks.append(current)
-                current = []
-        else:
-            current.append(line.strip())
+        if is_header(line):
+            if current_header is not None:
+                blocks.append((current_header, current_description))
+            current_header = line.strip()
+            current_description = []
+        elif current_header is not None:
+            current_description.append(line.rstrip())
 
-    if current:
-        blocks.append(current)
+    if current_header is not None:
+        blocks.append((current_header, current_description))
 
     items = []
-    for block in blocks:
-        header = [part.strip() for part in block[0].split("|")]
+    for header_line, description_lines in blocks:
+        header = [part.strip() for part in header_line.split("|")]
         header += [""] * (len(fields) - len(header))
         item = {field: header[index] for index, field in enumerate(fields)}
-        item["description"] = "\n".join(block[1:]).strip()
+        item["description"] = "\n".join(description_lines).strip()
         items.append(item)
     return items
 
@@ -96,7 +104,10 @@ def parse_skills(text: str) -> list[dict]:
 
 
 def format_skills(items: list[dict]) -> str:
-    return "\n".join(
-        f"{item.get('name', '')} | {item.get('level', 3)} | {item.get('evidence', '')}"
-        for item in items or []
-    )
+    lines = []
+    for item in items or []:
+        level = item.get("level") or 3
+        lines.append(
+            f"{item.get('name', '')} | {level} | {item.get('evidence', '')}"
+        )
+    return "\n".join(lines)

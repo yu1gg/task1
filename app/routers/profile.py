@@ -82,21 +82,25 @@ def save_profile(
         db.add(profile)
         db.flush()
 
-    profile.summary = summary.strip()
-    profile.education_json = parse_education(education_text)
-    profile.projects_json = parse_blocks(projects_text, ["name", "role", "period"])
-    profile.internships_json = parse_blocks(
-        internships_text, ["company", "role", "period"]
+    profile.summary = summary.strip()[:500]
+    profile.education_json = parse_education(education_text[:4000])
+    profile.projects_json = parse_blocks(
+        projects_text[:8000], ["name", "role", "period"]
     )
-    profile.awards_json = parse_awards(awards_text)
-    profile.skills_json = parse_skills(skills_text)
+    profile.internships_json = parse_blocks(
+        internships_text[:8000], ["company", "role", "period"]
+    )
+    profile.awards_json = parse_awards(awards_text[:4000])
+    profile.skills_json = parse_skills(skills_text[:4000])
     profile.availability_from = availability_from.strip() or None
-    profile.availability_note = availability_note.strip() or None
+    profile.availability_note = availability_note.strip()[:200] or None
 
     target_job_id = target_job_id.strip()
-    if target_job_id.isdigit():
+    if target_job_id.isdigit() and len(target_job_id) <= 9:
         job = db.get(Job, int(target_job_id))
-        profile.target_job_id = job.id if job is not None else None
+        profile.target_job_id = (
+            job.id if job is not None and job.status == "open" else None
+        )
     else:
         profile.target_job_id = None
 

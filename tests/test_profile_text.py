@@ -44,3 +44,18 @@ def test_skills_parse_clamps_and_formats():
     assert items[1]["level"] == 3
     assert items[0]["evidence"] == "课程项目"
     assert "Python | 5 | 课程项目" in format_skills(items)
+
+
+def test_projects_preserve_blank_lines_in_description():
+    text = "P | R | T\nline1\n\nline2\n\nQ | R | T"
+    items = parse_blocks(text, ["name", "role", "period"])
+    assert len(items) == 2
+    assert items[0]["description"] == "line1\n\nline2"
+    assert items[1]["name"] == "Q"
+
+
+def test_format_skills_null_level_defaults_to_three():
+    assert (
+        format_skills([{"name": "Python", "level": None, "evidence": ""}])
+        == "Python | 3 | "
+    )

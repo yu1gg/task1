@@ -76,3 +76,74 @@ def test_teacher_cannot_access_student_profile(client):
     make_teacher(client)
     response = client.get("/profile")
     assert response.status_code == 403
+
+
+def test_invalid_target_job_values_are_cleared(client):
+    make_student(client)
+
+    response = client.post(
+        "/profile",
+        data={**PROFILE_DATA, "target_job_id": "abc"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+
+    with SessionLocal() as db:
+        student = db.scalar(select(User).where(User.username == "stu1"))
+        assert db.get(StudentProfile, student.id).target_job_id is None
+
+    response = client.post(
+        "/profile",
+        data={**PROFILE_DATA, "target_job_id": "9" * 20},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+
+    with SessionLocal() as db:
+        student = db.scalar(select(User).where(User.username == "stu1"))
+        assert db.get(StudentProfile, student.id).target_job_id is None
+
+
+def test_closed_target_job_is_not_saved(client):
+    make_student(client)
+
+    with SessionLocal() as db:
+        student = db.scalar(select(User).where(User.username == "stu1"))
+        company = Company(name="关闭公司", created_by=student.id)
+        db.add(company)
+        db.flush()
+        job = Job(
+            company_id=company.id,
+            title="关闭岗位",
+            created_by=student.id,
+            status="closed",
+        )
+        db.add(job)
+        db.commit()
+        job_id = job.id
+
+    response = client.post(
+        "/profile",
+        data={**PROFILE_DATA, "target_job_id": str(job_id)},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+
+    with SessionLocal() as db:
+        student = db.scalar(select(User).where(User.username == "stu1"))
+        assert db.get(StudentProfile, student.id).target_job_id is None
+
+
+def test_empty_profile_save_and_availability_clear(client):
+    make_student(client)
+    client.post("/profile", data=PROFILE_DATA, follow_redirects=False)
+
+    response = client.post("/profile", data={}, follow_redirects=False)
+    assert response.status_code == 303
+
+    with SessionLocal() as db:
+        student = db.scalar(select(User).where(User.username == "stu1"))
+        profile = db.get(StudentProfile, student.id)
+        assert profile.summary == ""
+        assert profile.skills_json == []
+        assert profile.availability_from is None

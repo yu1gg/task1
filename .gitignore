@@ -4,8 +4,14 @@ __pycache__/
 .env
 data/
 test_app.db
+test_app.db-shm
+test_app.db-wal
+*.db-shm
+*.db-wal
 .pytest_cache/
 *.mp4
 *.wav
 *.mp3
 *.zip
+AI赋能职业发展和面试指导产品.docx
+guide.txt

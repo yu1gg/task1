@@ -1,32 +1,68 @@
 {% extends "base.html" %}
 {% block title %}AI 职业发展平台{% endblock %}
 {% block content %}
-<div class="p-5 mb-4 bg-white rounded-3 shadow-sm">
-  <h1 class="display-6 fw-bold">AI 职业发展平台</h1>
-  <p class="lead text-muted">从岗位技能拆解，到 AI 简历与视频面试，帮你把能力差距变成成长路径。</p>
-  <a class="btn btn-primary btn-lg" href="/register">开始使用</a>
-  {% if not user %}
-  <a class="btn btn-outline-secondary btn-lg ms-2" href="/login">已有账号，登录</a>
-  {% endif %}
-</div>
-<div class="row g-3">
-  <div class="col-md-4">
-    <div class="card h-100"><div class="card-body">
-      <h5 class="card-title">岗位技能拆解</h5>
-      <p class="card-text text-muted">录入企业岗位，AI 自动提取必须技能与要求等级。</p>
-    </div></div>
-  </div>
-  <div class="col-md-4">
-    <div class="card h-100"><div class="card-body">
-      <h5 class="card-title">能力差距清晰</h5>
-      <p class="card-text text-muted">按岗位查看自己的技能差距，知道下一步学什么。</p>
-    </div></div>
-  </div>
-  <div class="col-md-4">
-    <div class="card h-100"><div class="card-body">
-      <h5 class="card-title">AI 简历与面试</h5>
-      <p class="card-text text-muted">生成针对性简历，并通过 AI 视频面试发现短板。</p>
-    </div></div>
+<div class="portal">
+  <header class="portal-hero">
+    <div class="portal-intro">
+      <h1>从岗位出发，<br>做好求职准备</h1>
+      <p>对照岗位要求找出技能差距，制作定制简历，再通过逐题语音面试练习表达。</p>
+      <div class="portal-actions">
+        {% if user %}
+        <a class="btn btn-primary" href="/dashboard">进入我的工作台</a>
+        <a class="btn btn-outline-primary" href="/jobs">浏览开放岗位</a>
+        {% else %}
+        <a class="btn btn-primary" href="/login">登录平台</a>
+        <a class="btn btn-outline-primary" href="/register">注册账号</a>
+        {% endif %}
+      </div>
+    </div>
+
+    <section class="portal-path" aria-labelledby="portal-path-title">
+      <h2 id="portal-path-title">学生求职路径</h2>
+      <ol>
+        <li><div><strong>选一个目标岗位</strong><span>查看技能要求，对照自己的能力</span></div></li>
+        <li><div><strong>准备一份岗位简历</strong><span>从真实经历中挑选相关内容</span></div></li>
+        <li><div><strong>练习一场语音面试</strong><span>逐题作答，结束后查看反馈</span></div></li>
+      </ol>
+    </section>
+  </header>
+
+  <div class="portal-roles">
+    {% if not user or user.role == 'student' %}
+    <section class="portal-role" aria-labelledby="portal-student-title">
+      <div>
+        <h2 id="portal-student-title">学生求职</h2>
+        <p>从开放岗位找方向，补齐能力差距。</p>
+      </div>
+      {% if user %}
+      <a href="/profile">完善我的资料 <span aria-hidden="true">↗</span></a>
+      {% else %}
+      <a href="/jobs">先看看岗位 <span aria-hidden="true">↗</span></a>
+      {% endif %}
+    </section>
+    {% endif %}
+    {% if not user or user.role == 'teacher' %}
+    <section class="portal-role" aria-labelledby="portal-teacher-title">
+      <div>
+        <h2 id="portal-teacher-title">教师指导</h2>
+        <p>发布岗位、查看学生匹配，按授权批量导出简历。</p>
+      </div>
+      {% if user %}
+      <a href="/jobs">选岗位查看匹配 <span aria-hidden="true">↗</span></a>
+      {% else %}
+      <a href="/login">登录教师工作台 <span aria-hidden="true">↗</span></a>
+      {% endif %}
+    </section>
+    {% endif %}
+    {% if user and user.role == 'alumni' %}
+    <section class="portal-role" aria-labelledby="portal-alumni-title">
+      <div>
+        <h2 id="portal-alumni-title">校友分享</h2>
+        <p>将实习和招聘机会分享给在校学生。</p>
+      </div>
+      <a href="/jobs/new">发布岗位 <span aria-hidden="true">↗</span></a>
+    </section>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

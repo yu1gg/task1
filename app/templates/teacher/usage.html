@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="page-title">使用记录</h1><p>日期采用北京时间；日期留空时默认最近30天。</p>
+<form method="get" class="d-flex gap-2 flex-wrap mb-3">
+<label>用户ID <input name="user_id" type="number" value="{{ filters.user_id if filters.user_id is not none else '' }}"></label>
+<label>事件 <input name="event_type" maxlength="64" value="{{ filters.event_type }}"></label>
+<label>开始日期 <input name="start_date" type="date" value="{{ filters.start_date }}"></label>
+<label>结束日期 <input name="end_date" type="date" value="{{ filters.end_date }}"></label><button>筛选</button>
+</form>
+<a href="/teacher/usage/export.csv?{{ query }}">导出全部筛选结果 CSV</a>
+<div class="table-responsive"><table class="table" style="min-width:800px"><thead><tr><th>事件ID</th><th>用户ID</th><th>姓名</th><th>事件</th><th>时间（北京时间）</th><th>IP</th></tr></thead><tbody>
+{% for event, name in rows %}<tr><td>{{ event.id }}</td><td>{{ event.user_id if event.user_id is not none else '' }}</td><td>{{ name or '' }}</td><td>{{ event.event_type }}</td><td>{{ beijing_time(event.created_at) }}</td><td>{{ event.ip }}</td></tr>{% else %}<tr><td colspan="6">暂无记录</td></tr>{% endfor %}
+</tbody></table></div>
+{% if page > 1 %}<a href="?{{ query }}&page={{ page - 1 }}">上一页</a>{% endif %}
+<span>第{{ page }}页</span>
+{% if has_next %}<a href="?{{ query }}&page={{ page + 1 }}">下一页</a>{% endif %}
+{% endblock %}

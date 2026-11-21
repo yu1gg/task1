@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}{{ job.title }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3">
+  <div>
+    <h1 class="page-title mb-1">{{ job.title }}</h1>
+    <div class="text-muted">{{ job.company.name }}{% if job.location %} · {{ job.location }}{% endif %}</div>
+  </div>
+  {% if can_edit %}
+  <div class="d-flex gap-2 flex-wrap">
+    <form method="post" action="/jobs/{{ job.id }}/extract-skills"
+          onsubmit="return confirm('AI 分析会替换当前技能，确定继续？')">
+      <button class="btn btn-outline-primary" type="submit">AI 分析技能</button>
+    </form>
+    <a class="btn btn-outline-primary" href="/jobs/{{ job.id }}/skills">编辑技能</a>
+    <a class="btn btn-outline-primary" href="/jobs/{{ job.id }}/edit">编辑岗位</a>
+  </div>
+  {% endif %}
+</div>
+
+<div class="row g-3">
+  {% if user and user.role == 'teacher' %}
+  <div class="col-12"><a class="btn btn-primary" href="/teacher/jobs/{{ job.id }}/matches">学生匹配与批量简历</a></div>
+  {% endif %}
+  {% if user and user.role == 'student' and job.status == 'open' %}
+  <div class="col-12"><a class="btn btn-primary" href="/resumes?job_id={{ job.id }}">按此岗位生成简历</a></div>
+  <div class="col-12"><a class="btn btn-outline-primary" href="/interviews?job_id={{ job.id }}">按此岗位语音面试</a></div>
+  {% endif %}
+  <div class="col-lg-8">
+    <div class="card mb-3">
+      <div class="card-header">岗位描述</div>
+      <div class="card-body"><div style="white-space: pre-wrap;">{{ job.description or "暂无描述" }}</div></div>
+    </div>
+    <div class="card mb-3">
+      <div class="card-header">岗位要求</div>
+      <div class="card-body"><div style="white-space: pre-wrap;">{{ job.requirements or "暂无要求" }}</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header">技能要求</div>
+      <div class="card-body p-0">
+        {% if job.skills %}
+        <div class="table-responsive">
+          <table class="table mb-0">
+            <thead><tr><th>技能</th><th>类别</th><th>重要性</th><th>要求等级</th></tr></thead>
+            <tbody>
+            {% for skill in job.skills %}
+              <tr>
+                <td>{{ skill.name }}</td>
+                <td>{{ skill.category }}</td>
+                <td>{% if skill.importance == 'must' %}<span class="badge text-bg-danger">必须</span>{% else %}<span class="badge text-bg-secondary">加分</span>{% endif %}</td>
+                <td>{{ skill.required_level }} / 5</td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="p-4 text-muted">岗位技能尚未分析。</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-header">岗位信息</div>
+      <div class="card-body">
+        <dl class="row mb-0">
+          <dt class="col-5 text-muted fw-normal">招聘人数</dt><dd class="col-7">{{ job.headcount }}</dd>
+          <dt class="col-5 text-muted fw-normal">薪资范围</dt><dd class="col-7">{{ job.salary_range or "面议" }}</dd>
+          <dt class="col-5 text-muted fw-normal">截止日期</dt><dd class="col-7">{{ job.deadline or "未设置" }}</dd>
+          <dt class="col-5 text-muted fw-normal">期望到岗</dt><dd class="col-7">{{ job.expected_start_date or "未设置" }}</dd>
+          <dt class="col-5 text-muted fw-normal">状态</dt><dd class="col-7">{{ "开放" if job.status == "open" else "已关闭" }}</dd>
+        </dl>
+      </div>
+    </div>
+    {% if user and user.role == 'student' %}
+    <div class="card mt-3">
+      <div class="card-header">我的匹配情况</div>
+      <div class="card-body">
+        {% if match is none %}
+        <p class="mb-2">先完善你的技能资料，才能计算匹配度。</p>
+        <a class="btn btn-sm btn-primary" href="/profile">完善资料</a>
+        {% elif not match.has_job_skills %}
+        <p class="text-muted mb-0">岗位技能尚未分析，暂时无法计算匹配度。</p>
+        {% else %}
+        <div class="d-flex align-items-baseline gap-2 mb-2">
+          <span class="display-6 fw-bold">{{ match.score }}%</span>
+          <span class="text-muted">匹配度</span>
+        </div>
+        {% if match.gaps %}
+        <div class="fw-semibold mb-2">待补齐技能</div>
+        <ul class="mb-0 ps-3">
+          {% for gap in match.gaps %}
+          <li>{{ gap.name }}：{{ gap.student_level }} / {{ gap.required_level }}（{% if gap.importance == 'must' %}必须{% else %}加分{% endif %}）</li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-success mb-0">技能要求已全部达到。</p>
+        {% endif %}
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

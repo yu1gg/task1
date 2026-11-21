@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}批量简历导出{% endblock %}
+{% block content %}
+<h1>批量简历导出</h1>
+<div id="resume-export" data-task-id="{{ task.id }}">
+  <p id="export-progress" role="status">正在读取任务进度…</p>
+  <p id="export-error" class="text-danger" role="alert"></p>
+  <ul id="export-items"></ul>
+  <a id="export-download" class="btn btn-primary" hidden>下载 ZIP</a>
+  <button id="export-retry" class="btn btn-secondary" hidden>重试失败项目</button>
+  <button id="export-refresh" class="btn btn-secondary" hidden>重新读取状态</button>
+  <a href="/jobs" class="btn btn-link">返回岗位，重新创建任务</a>
+</div>
+<script src="/static/js/resume_export.js" defer></script>
+{% endblock %}

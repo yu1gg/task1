@@ -5,12 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}AI 职业发展平台{% endblock %}</title>
   <link rel="stylesheet" href="/static/vendor/bootstrap.min.css">
-  <link rel="stylesheet" href="/static/css/app.css">
+  <link rel="stylesheet" href="/static/css/app.css?v=9c49d04d9c3e">
 </head>
 <body>
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+<a class="skip-link" href="#main-content">跳到主要内容</a>
+{% set current_path = request.url.path %}
+{% macro nav_item(label, path, active=false) %}
+<li class="nav-item">
+  <a class="nav-link{% if active %} active{% endif %}" href="{{ path }}"{% if active %} aria-current="{% if current_path == path %}page{% else %}location{% endif %}"{% endif %}>{{ label }}</a>
+</li>
+{% endmacro %}
+<nav class="navbar navbar-expand-lg site-nav" aria-label="主导航">
   <div class="container">
-    <a class="navbar-brand" href="/">AI 职业发展平台</a>
+    <a class="navbar-brand" href="/">
+      <span class="site-mark" aria-hidden="true">职</span>
+      AI 职业发展平台
+    </a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav"
             aria-controls="mainNav" aria-expanded="false" aria-label="切换导航">
       <span class="navbar-toggler-icon"></span>
@@ -18,38 +28,35 @@
     <div class="collapse navbar-collapse" id="mainNav">
       <ul class="navbar-nav me-auto">
         {% if user %}
-        <li class="nav-item"><a class="nav-link" href="/dashboard">工作台</a></li>
+          {{ nav_item("工作台", "/dashboard", current_path == "/dashboard") }}
         {% endif %}
-        <li class="nav-item"><a class="nav-link" href="/jobs">岗位</a></li>
+        {{ nav_item("岗位", "/jobs", current_path.startswith("/jobs") or current_path.startswith("/teacher/jobs/")) }}
         {% if user and user.role == 'student' %}
-        <li class="nav-item"><a class="nav-link" href="/profile">我的资料</a></li>
-        <li class="nav-item"><a class="nav-link" href="/resumes">我的简历</a></li>
-        <li class="nav-item"><a class="nav-link" href="/interviews">语音面试</a></li>
-        {% endif %}
-        {% if user and user.role == 'teacher' %}
-        <li class="nav-item"><a class="nav-link" href="/teacher/usage">使用记录</a></li>
+          {{ nav_item("我的资料", "/profile", current_path == "/profile") }}
+          {{ nav_item("我的简历", "/resumes", current_path.startswith("/resumes")) }}
+          {{ nav_item("语音面试", "/interviews", current_path.startswith("/interviews")) }}
+        {% elif user and user.role == 'teacher' %}
+          {{ nav_item("使用记录", "/teacher/usage", current_path == "/teacher/usage") }}
         {% endif %}
       </ul>
+      {% if user %}
+      <div class="site-account">
+        <span><strong>{{ user.real_name }}</strong> <span class="site-role">{{ role_label }}</span></span>
+        <form method="post" action="/logout">
+          <button class="btn btn-outline-secondary btn-sm" type="submit">退出</button>
+        </form>
+      </div>
+      {% else %}
       <ul class="navbar-nav">
-        {% if user %}
-        <li class="nav-item">
-          <span class="navbar-text me-3">{{ user.real_name }}{% if role_label %}（{{ role_label }}）{% endif %}</span>
-        </li>
-        <li class="nav-item">
-          <form method="post" action="/logout" class="d-inline">
-            <button class="btn btn-outline-light btn-sm" type="submit">退出</button>
-          </form>
-        </li>
-        {% else %}
-        <li class="nav-item"><a class="nav-link" href="/login">登录</a></li>
-        <li class="nav-item"><a class="nav-link" href="/register">注册</a></li>
-        {% endif %}
+        {{ nav_item("登录", "/login", current_path == "/login") }}
+        {{ nav_item("注册", "/register", current_path == "/register") }}
       </ul>
+      {% endif %}
     </div>
   </div>
 </nav>
 
-<main class="container py-4">
+<main class="container site-main" id="main-content" tabindex="-1">
   {% for f in flashes %}
   <div class="alert alert-{{ f.category }} alert-dismissible fade show" role="alert">
     {{ f.message }}

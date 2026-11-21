@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     llm_model: str = "deepseek-chat"
     llm_timeout_seconds: float = 60.0
     llm_max_retries: int = 2
+    llm_structured_output: bool = False
     siliconflow_api_key: str = ""
     speech_base_url: str = "https://api.siliconflow.cn/v1"
     asr_model: str = "FunAudioLLM/SenseVoiceSmall"

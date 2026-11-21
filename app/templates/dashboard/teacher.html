@@ -1,57 +1,69 @@
 {% extends "base.html" %}
 {% block title %}教师工作台{% endblock %}
 {% block content %}
-<h1 class="page-title">教师工作台</h1>
-<div class="row g-3 mb-4">
-  <div class="col-md-4">
-    <div class="card h-100"><div class="card-body">
-      <div class="text-muted mb-1">学生人数</div>
-      <div class="display-6 fw-bold">{{ student_count }}</div>
-    </div></div>
-  </div>
-  <div class="col-md-4">
-    <div class="card h-100"><div class="card-body">
-      <div class="text-muted mb-1">岗位数量</div>
-      <div class="display-6 fw-bold">{{ job_count }}</div>
-    </div></div>
-  </div>
-  <div class="col-md-4">
-    <div class="card h-100"><div class="card-body">
-      <div class="text-muted mb-1">快捷操作</div>
-      <a class="btn btn-sm btn-primary" href="/jobs/new">发布岗位</a>
-      <a class="btn btn-sm btn-outline-primary" href="/jobs">查看岗位</a>
-      <a class="btn btn-sm btn-outline-primary" href="/teacher/usage">使用记录 / CSV</a>
-    </div></div>
-  </div>
-</div>
-
-<div class="card mb-4">
-  <div class="card-header">最近批量简历任务</div>
-  <div class="list-group list-group-flush">
-    {% for task in recent_exports %}<a class="list-group-item list-group-item-action" href="/teacher/resume-exports/{{ task.id }}">{{ task.job_snapshot.get('title', '岗位定制简历') }} · {% if task.status in ['completed','partial'] %}查看结果{% elif task.status in ['expired','invalidated'] %}任务已失效{% elif task.status == 'failed' %}查看失败原因{% else %}处理中{% endif %}</a>{% else %}<div class="card-body text-muted">暂无任务。在岗位详情选择“学生匹配与批量简历”开始。</div>{% endfor %}
-  </div>
-</div>
-
-<div class="card">
-  <div class="card-header">最近岗位</div>
-  <div class="card-body p-0">
-    {% if jobs %}
-    <div class="list-group list-group-flush">
-      {% for job in jobs %}
-      <a class="list-group-item list-group-item-action" href="/jobs/{{ job.id }}">
-        <div class="d-flex justify-content-between align-items-center">
-          <div>
-            <div class="fw-semibold">{{ job.title }}</div>
-            <div class="form-hint">{{ job.company.name }}{% if job.location %} · {{ job.location }}{% endif %}</div>
-          </div>
-          <span class="text-muted">查看 →</span>
-        </div>
-      </a>
-      {% endfor %}
+<header class="workspace-banner">
+  <div class="workspace-intro">
+    <p class="workspace-role">教师工作台</p>
+    <h1>你好，{{ user.real_name }}</h1>
+    <p>发布岗位、查看学生匹配，并跟进简历导出。</p>
+    <div class="workspace-actions">
+      <a class="btn btn-primary" href="/jobs/new">发布岗位</a>
+      <a class="btn btn-outline-light" href="/jobs">查看学生匹配</a>
+      <a class="btn btn-outline-light" href="/teacher/usage">使用记录</a>
     </div>
-    {% else %}
-    <div class="p-4 text-muted">还没有岗位，点击“发布岗位”开始。</div>
-    {% endif %}
   </div>
+  <dl class="workspace-summary teacher-metrics">
+    <div><dt>学生人数</dt><dd>{{ student_count }}</dd></div>
+    <div><dt>岗位数量</dt><dd>{{ job_count }}</dd></div>
+  </dl>
+</header>
+
+<div class="workspace-grid">
+  <section class="card workspace-panel" aria-labelledby="teacher-jobs-title">
+    <div class="workspace-panel-header">
+      <h2 id="teacher-jobs-title">最近岗位</h2>
+      <a href="/jobs">查看所有岗位</a>
+    </div>
+    {% if jobs %}
+    <ul class="workspace-list">
+      {% for job in jobs %}
+      <li class="workspace-row teacher-job">
+        <a class="teacher-job-title" href="/jobs/{{ job.id }}">
+          <strong>{{ job.title }}</strong>
+          <small>{{ job.company.name }}{% if job.location %} · {{ job.location }}{% endif %}</small>
+        </a>
+        <a class="btn btn-outline-primary btn-sm" href="/teacher/jobs/{{ job.id }}/matches" aria-label="查看学生匹配：{{ job.title }}">查看学生匹配</a>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="workspace-empty">发布岗位后，可以在这里查看学生匹配。</p>
+    {% endif %}
+  </section>
+
+  <section class="card workspace-panel" aria-labelledby="export-tasks-title">
+    <div class="workspace-panel-header"><h2 id="export-tasks-title">最近导出任务</h2></div>
+    {% set export_status = {
+      'completed': ('已完成', 'success'), 'partial': ('部分失败', 'warning'),
+      'failed': ('失败', 'warning'), 'expired': ('已过期', 'muted'),
+      'invalidated': ('已失效', 'muted'), 'queued': ('排队中', 'muted'),
+      'processing': ('处理中', 'active')
+    } %}
+    {% if recent_exports %}
+    <ul class="workspace-list">
+      {% for task in recent_exports %}
+      {% set status, tone = export_status.get(task.status, export_status['processing']) %}
+      <li>
+        <a class="workspace-row" href="/teacher/resume-exports/{{ task.id }}">
+          <strong>{{ task.job_snapshot.get('title', '岗位定制简历') }}</strong>
+          <span class="task-status task-status-{{ tone }}">{{ status }}</span>
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="workspace-empty">在岗位的「查看学生匹配」中选择学生，即可创建导出任务。</p>
+    {% endif %}
+  </section>
 </div>
 {% endblock %}

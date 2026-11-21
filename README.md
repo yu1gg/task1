@@ -55,6 +55,32 @@ python -m venv .venv
 
 详见 [P2验证记录](docs/p2-verification.md)。本轮交接已从远端恢复Git历史，本地分支为 `p1-foundation`，最新开发与接手步骤见 [HANDOVER.md](HANDOVER.md)。
 
+## Windows 本机免费模型
+
+安装项目基础依赖后，确认 Ollama 可在命令行使用，ffmpeg 和 ffprobe 可执行，Windows 已安装 `Microsoft Huihui Desktop` 中文音色。启动 Ollama 后，从仓库根目录执行以下命令下载模型。下载需要网络，推理和语音处理在本机进行。
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements-local-ai.txt
+ollama pull qwen2.5:3b
+.\.venv\Scripts\python.exe -B -c "from faster_whisper.utils import download_model; download_model('small', output_dir='data/local-ai/whisper-small')"
+```
+
+将以下配置项合并到根目录 `.env`，保留数据库、会话和 ffmpeg 相关设置。两个 API Key 值是本机兼容客户端使用的占位符。
+
+```dotenv
+DEEPSEEK_BASE_URL=http://127.0.0.1:11434/v1
+DEEPSEEK_API_KEY=local-ollama
+LLM_MODEL=qwen2.5:3b
+LLM_STRUCTURED_OUTPUT=true
+SPEECH_BASE_URL=http://127.0.0.1:8766/v1
+SILICONFLOW_API_KEY=local-speech
+ASR_MODEL=whisper-small
+TTS_MODEL=windows-sapi
+TTS_VOICE="Microsoft Huihui Desktop"
+```
+
+运行 `.\.venv\Scripts\python.exe -m scripts.start_local_ai` 启动本机服务，等待网页就绪后打开 `http://127.0.0.1:8000/`。启动器保持在前台运行，在该终端按 Ctrl+C 停机。模型权重保存在各自的本机模型目录。
+
 ## P3 语音面试
 
 学生从“语音面试”选择岗位与轮次，完成默认5题录音/上传问答后查看报告。每题最多90秒、20MB，本机/HTTPS可直接录音，HTTP使用音频上传。AI读题失败时可使用浏览器朗读，语音识别失败需重试，不生成假转写。

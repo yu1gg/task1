@@ -1,3 +1,4 @@
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -48,6 +49,9 @@ def test_generates_only_source_facts_in_selected_order():
     assert content.awards == ["校奖"]
     assert "开发API" not in content.model_dump_json()
     assert resume_text_length(content) > 0
+    ids = json.loads(llm.calls[0][1])["available_ids"]
+    assert ids["projects"] == [{"id": 0, "lines": [0, 1]}]
+    assert ids["education"] == []
 
 
 @pytest.mark.parametrize("bad", [selection(skills=[4]), selection(skills=[0, 0]),

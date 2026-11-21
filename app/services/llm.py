@@ -3,6 +3,7 @@ import time
 from typing import Any, Protocol
 
 import httpx
+from pydantic import BaseModel
 
 from app.config import settings
 
@@ -16,6 +17,23 @@ class LLMProtocol(Protocol):
         ...
 
 
+def _normalize_strict_schema(schema: dict[str, Any]) -> None:
+    """Apply strict output requirements to each generated object schema."""
+    schema.pop("default", None)
+    if schema.get("type") == "object":
+        schema["required"] = list(schema.get("properties", {}))
+        schema["additionalProperties"] = False
+
+    for key in ("properties", "$defs"):
+        for child in schema.get(key, {}).values():
+            _normalize_strict_schema(child)
+    for key in ("anyOf", "oneOf", "allOf", "prefixItems"):
+        for child in schema.get(key, []):
+            _normalize_strict_schema(child)
+    if isinstance(schema.get("items"), dict):
+        _normalize_strict_schema(schema["items"])
+
+
 class LLMClient:
     def __init__(
         self,
@@ -25,6 +43,8 @@ class LLMClient:
         timeout: float = 60.0,
         max_retries: int = 2,
         transport: httpx.BaseTransport | None = None,
+        *,
+        structured_output: bool = False,
     ):
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
@@ -32,11 +52,26 @@ class LLMClient:
         self.timeout = timeout
         self.max_retries = max_retries
         self.transport = transport
+        self.structured_output = structured_output
 
-    def chat_json(self, system: str, user: str) -> dict[str, Any]:
+    def chat_json(
+        self, system: str, user: str, *, response_model: type[BaseModel] | None = None,
+    ) -> dict[str, Any]:
         if not self.api_key:
             raise LLMError("未配置 DEEPSEEK_API_KEY，请先在 .env 中填写")
 
+        response_format: dict[str, Any] = {"type": "json_object"}
+        if self.structured_output and response_model is not None:
+            schema = response_model.model_json_schema()
+            _normalize_strict_schema(schema)
+            response_format = {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": response_model.__name__,
+                    "strict": True,
+                    "schema": schema,
+                },
+            }
         payload = {
             "model": self.model,
             "messages": [
@@ -44,7 +79,7 @@ class LLMClient:
                 {"role": "user", "content": user},
             ],
             "temperature": 0.2,
-            "response_format": {"type": "json_object"},
+            "response_format": response_format,
         }
 
         last_error: Exception | None = None
@@ -84,6 +119,14 @@ class LLMClient:
         raise LLMError(f"LLM 调用失败：{last_error}")
 
 
+def chat_json_for(
+    llm: LLMProtocol, system: str, user: str, response_model: type[BaseModel],
+) -> dict[str, Any]:
+    if isinstance(llm, LLMClient) and llm.structured_output:
+        return llm.chat_json(system, user, response_model=response_model)
+    return llm.chat_json(system, user)
+
+
 def get_llm_client() -> LLMClient:
     return LLMClient(
         api_key=settings.deepseek_api_key,
@@ -91,4 +134,5 @@ def get_llm_client() -> LLMClient:
         model=settings.llm_model,
         timeout=settings.llm_timeout_seconds,
         max_retries=settings.llm_max_retries,
+        structured_output=settings.llm_structured_output,
     )

@@ -146,4 +146,4 @@ def test_dashboard_shows_empty_recommendation_state(client):
     response = client.get("/dashboard")
 
     assert "推荐岗位" in response.text
-    assert "先完善技能资料" in response.text
+    assert "暂时没有已分析技能的岗位" in response.text

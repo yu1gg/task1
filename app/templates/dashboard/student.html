@@ -1,79 +1,94 @@
 {% extends "base.html" %}
 {% block title %}学生工作台{% endblock %}
 {% block content %}
-<h1 class="page-title">学生工作台</h1>
-<div class="row g-3 mb-4">
-  <div class="col-md-4">
-    <div class="card h-100"><div class="card-body">
-      <div class="text-muted mb-1">资料完成度</div>
-      <div class="display-6 fw-bold">{{ completion }}%</div>
-      <div class="progress mt-3" role="progressbar" aria-valuenow="{{ completion }}" aria-valuemin="0" aria-valuemax="100">
-        <div class="progress-bar" style="width: {{ completion }}%"></div>
+<header class="workspace-banner">
+  <div class="workspace-intro">
+    <p class="workspace-role">学生工作台</p>
+    <h1>你好，{{ user.real_name }}</h1>
+    {% if skill_count %}
+    <p>从岗位要求出发，找出值得优先补齐的能力。</p>
+    <a class="btn btn-primary" href="/jobs">查看匹配岗位</a>
+    {% else %}
+    <p>先填写你的技能，系统就能帮你对照岗位要求。</p>
+    <a class="btn btn-primary" href="/profile">完善资料</a>
+    {% endif %}
+  </div>
+  <section class="workspace-summary" aria-labelledby="profile-progress-title">
+    <div class="workspace-metric">
+      <h2 id="profile-progress-title">资料完成度</h2>
+      <strong>{{ completion }}%</strong>
+    </div>
+    <div class="progress" role="progressbar" aria-labelledby="profile-progress-title"
+         aria-valuenow="{{ completion }}" aria-valuemin="0" aria-valuemax="100">
+      <div class="progress-bar" style="width: {{ completion }}%"></div>
+    </div>
+    <p class="mb-0">已填写 {{ skill_count }} 项技能</p>
+  </section>
+</header>
+
+<div class="workspace-grid">
+  <section class="card workspace-panel student-tools-panel" aria-labelledby="student-tools-title">
+    <div class="workspace-panel-header"><h2 id="student-tools-title">求职工具</h2></div>
+    <ul class="workspace-list workspace-tools">
+      <li><a class="workspace-row" href="/resumes">
+        <span><strong>制作简历</strong><small>按目标岗位生成、编辑和下载</small></span>
+        <span class="workspace-arrow" aria-hidden="true">→</span>
+      </a></li>
+      <li><a class="workspace-row" href="/interviews">
+        <span><strong>练习语音面试</strong><small>逐题作答，查看反馈和报告</small></span>
+        <span class="workspace-arrow" aria-hidden="true">→</span>
+      </a></li>
+      <li><a class="workspace-row" href="/profile">
+        <span><strong>编辑我的资料</strong><small>更新经历、技能和到岗时间</small></span>
+        <span class="workspace-arrow" aria-hidden="true">→</span>
+      </a></li>
+    </ul>
+  </section>
+  <div class="workspace-stack">
+    <section class="card workspace-panel" aria-labelledby="recommended-title">
+      <div class="workspace-panel-header">
+        <h2 id="recommended-title">推荐岗位</h2>
+        <a href="/jobs">查看所有岗位</a>
       </div>
-      <a class="btn btn-sm btn-outline-primary mt-3" href="/profile">完善资料</a>
-    </div></div>
-  </div>
-  <div class="col-md-4">
-    <div class="card h-100"><div class="card-body">
-      <div class="text-muted mb-1">已填写技能</div>
-      <div class="display-6 fw-bold">{{ skill_count }}</div>
-      <p class="text-muted mt-3 mb-0">技能自评越完整，岗位差距越准确。</p>
-    </div></div>
-  </div>
-  <div class="col-md-4">
-    <div class="card h-100"><div class="card-body">
-      <div class="text-muted mb-1">下一步</div>
-      <p class="mb-2">浏览岗位，查看能力差距。</p>
-      <a class="btn btn-sm btn-primary" href="/jobs">去看岗位</a>
-      <a class="btn btn-sm btn-outline-primary" href="/resumes">制作简历</a>
-      <a class="btn btn-sm btn-outline-primary mt-2" href="/interviews">练习语音面试</a>
-    </div></div>
-  </div>
-</div>
+      {% if skill_count and recommendations %}
+      <ul class="workspace-list">
+        {% for item in recommendations %}
+        <li>
+          <a class="workspace-row" href="/jobs/{{ item.job.id }}">
+            <span>
+              <strong>{{ item.job.title }}</strong>
+              <small>{{ item.job.company.name }} · {% if item.gap_count %}待补齐 {{ item.gap_count }} 项技能{% else %}技能已达标{% endif %}</small>
+            </span>
+            <span class="match-score" aria-label="匹配度 {{ item.score }}%">{{ item.score }}%</span>
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+      {% elif not skill_count %}
+      <p class="workspace-empty">先完善技能资料，即可按匹配度查看推荐岗位。</p>
+      {% else %}
+      <p class="workspace-empty">暂时没有已分析技能的岗位，可以先浏览最新岗位。</p>
+      {% endif %}
+    </section>
 
-<div class="card mb-4">
-  <div class="card-header">推荐岗位</div>
-  <div class="card-body p-0">
-    {% if recommendations %}
-    <div class="list-group list-group-flush">
-      {% for item in recommendations %}
-      <a class="list-group-item list-group-item-action" href="/jobs/{{ item.job.id }}">
-        <div class="d-flex justify-content-between align-items-center">
-          <div>
-            <div class="fw-semibold">{{ item.job.title }}</div>
-            <div class="form-hint">{{ item.job.company.name }} · {% if item.gap_count > 0 %}待补齐 {{ item.gap_count }} 项技能{% else %}技能已达标{% endif %}</div>
-          </div>
-          <span class="badge text-bg-primary">{{ item.score }}%</span>
-        </div>
-      </a>
-      {% endfor %}
-    </div>
-    {% else %}
-    <div class="p-4 text-muted">先完善技能资料，系统会按匹配度推荐岗位。</div>
-    {% endif %}
+    <section class="card workspace-panel" aria-labelledby="latest-jobs-title">
+      <div class="workspace-panel-header"><h2 id="latest-jobs-title">最新岗位</h2></div>
+      {% if jobs %}
+      <ul class="workspace-list">
+        {% for job in jobs %}
+        <li>
+          <a class="workspace-row" href="/jobs/{{ job.id }}">
+            <span><strong>{{ job.title }}</strong><small>{{ job.company.name }}{% if job.location %} · {{ job.location }}{% endif %}</small></span>
+            <span class="workspace-arrow" aria-hidden="true">→</span>
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="workspace-empty">还没有开放岗位。</p>
+      {% endif %}
+    </section>
   </div>
-</div>
 
-<div class="card">
-  <div class="card-header">最新岗位</div>
-  <div class="card-body p-0">
-    {% if jobs %}
-    <div class="list-group list-group-flush">
-      {% for job in jobs %}
-      <a class="list-group-item list-group-item-action" href="/jobs/{{ job.id }}">
-        <div class="d-flex justify-content-between align-items-center">
-          <div>
-            <div class="fw-semibold">{{ job.title }}</div>
-            <div class="form-hint">{{ job.company.name }}{% if job.location %} · {{ job.location }}{% endif %}</div>
-          </div>
-          <span class="text-muted">查看 →</span>
-        </div>
-      </a>
-      {% endfor %}
-    </div>
-    {% else %}
-    <div class="p-4 text-muted">还没有岗位，去发布第一个岗位吧。</div>
-    {% endif %}
-  </div>
 </div>
 {% endblock %}

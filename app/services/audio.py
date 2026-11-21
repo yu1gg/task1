@@ -6,6 +6,8 @@ import wave
 from pathlib import Path, PureWindowsPath
 from app.config import settings
 
+INTERVIEW_MAX_SECONDS = 90
+
 
 class AudioError(Exception):
     pass
@@ -50,12 +52,12 @@ def normalize_audio(source: Path, destination: Path) -> None:
             raise AudioError('文件必须包含音轨且不能包含视频')
         subprocess.run([settings.ffmpeg_path, '-nostdin', '-v', 'error', '-protocol_whitelist', 'file,pipe',
                                 '-format_whitelist', 'matroska,webm,mov,mp3,wav,ogg',
-                        '-i', str(source.resolve()), '-map', '0:a:0', '-t', '91', '-vn', '-ac', '1',
+                        '-i', str(source.resolve()), '-map', '0:a:0', '-t', str(INTERVIEW_MAX_SECONDS + 1), '-vn', '-ac', '1',
                         '-ar', '16000', '-c:a', 'pcm_s16le', '-f', 'wav', '-n', str(destination.resolve())],
                        capture_output=True, timeout=30, shell=False, check=True)
         with wave.open(str(destination), 'rb') as wav:
             if (wav.getframerate() != 16000 or wav.getnchannels() != 1 or wav.getsampwidth() != 2
-                    or not 0 < wav.getnframes() <= 90 * 16000):
+                    or not 0 < wav.getnframes() <= INTERVIEW_MAX_SECONDS * 16000):
                 raise AudioError('音频必须有效且不超过 90 秒')
     except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError, wave.Error, EOFError, AudioError):
         destination.unlink(missing_ok=True)
